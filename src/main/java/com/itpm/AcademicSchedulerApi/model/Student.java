@@ -2,10 +2,12 @@ package com.itpm.AcademicSchedulerApi.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
 @DiscriminatorValue("STUDENT")
 @Table(name = "students")
+@Data
 public class Student {
 
     @Id

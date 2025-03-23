@@ -1,8 +1,11 @@
 package com.itpm.AcademicSchedulerApi.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
+@Table(name = "schedule_status")
+@Data
 public class ScheduleStatus {
 
     @Id
@@ -12,32 +15,8 @@ public class ScheduleStatus {
     @Column(unique = true)
     private int semester;
 
-    private String status; // PENDING, IN_PROGRESS, COMPLETED
+    private String status;
 
-    // getters and setters
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public int getSemester() {
-        return semester;
-    }
-
-    public void setSemester(int semester) {
-        this.semester = semester;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
 }
 

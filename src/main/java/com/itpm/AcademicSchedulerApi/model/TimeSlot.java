@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import com.itpm.AcademicSchedulerApi.model.converter.LocalTimeAttributeConverter;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Entity
 @Table(name = "time_slots")
+@Data
 public class TimeSlot {
 
     @Id
@@ -32,46 +34,6 @@ public class TimeSlot {
     @Convert(converter = LocalTimeAttributeConverter.class)
     private LocalTime endTime;
 
-    public TimeSlot() {
-    }
-
-    public TimeSlot(String day, LocalTime startTime, LocalTime endTime) {
-        this.day = day;
-        this.startTime = startTime;
-        this.endTime = endTime;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getDay() {
-        return day;
-    }
-
-    public void setDay(String day) {
-        this.day = day;
-    }
-
-    public LocalTime getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(LocalTime startTime) {
-        this.startTime = startTime;
-    }
-
-    public LocalTime getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(LocalTime endTime) {
-        this.endTime = endTime;
-    }
 
     public String getTime() {
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm");

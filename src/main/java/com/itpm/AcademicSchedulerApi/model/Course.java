@@ -2,9 +2,11 @@ package com.itpm.AcademicSchedulerApi.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
 @Table(name = "courses")
+@Data
 public class Course {
 
     @Id
@@ -28,7 +30,7 @@ public class Course {
     @Column(name = "room_spec")
     private String roomSpec;
 
-    private String commonId; // New field
+    private String commonId;
 
     @ManyToOne
     @JoinColumn(name = "programme_id")
@@ -50,101 +52,4 @@ public class Course {
     private Instructor instructor;
 
 
-    public Course() {
-    }
-
-    // Getters and setters
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getCourseCode() {
-        return courseCode;
-    }
-
-    public void setCourseCode(String courseCode) {
-        this.courseCode = courseCode;
-    }
-
-    public String getCourseName() {
-        return courseName;
-    }
-
-    public void setCourseName(String courseName) {
-        this.courseName = courseName;
-    }
-
-
-    public Section getSection() {
-        return section;
-    }
-
-    public void setSection(Section section) {
-        this.section = section;
-    }
-
-    public Department getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(Department department) {
-        this.department = department;
-    }
-
-    public Instructor getInstructor() {
-        return instructor;
-    }
-
-    public void setInstructor(Instructor instructor) {
-        this.instructor = instructor;
-    }
-
-    public int getSemester() {
-        return semester;
-    }
-
-    public void setSemester(int semester) {
-        this.semester = semester;
-    }
-
-    public Program getProgram() {
-        return program;
-    }
-
-    public void setProgram(Program program) {
-        this.program = program;
-    }
-
-    public int getYear() {
-        return year;
-    }
-
-    public void setYear(int year) {
-        this.year = year;
-    }
-
-    public String getRoomSpec() {
-        return roomSpec;
-    }
-
-    public void setRoomSpec(String roomSpec) {
-        this.roomSpec = roomSpec;
-    }
-
-    public boolean isCommonCourse() {
-        return this.courseCode.startsWith("CCS");
-    }
-
-    public String getCommonId() {
-        return commonId;
-    }
-
-    public void setCommonId(String commonId) {
-        this.commonId = commonId;
-    }
 }

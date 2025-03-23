@@ -3,6 +3,7 @@ package com.itpm.AcademicSchedulerApi.model;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.util.Set;
 
@@ -11,6 +12,7 @@ import java.util.Set;
 @Entity
 @DiscriminatorValue("INSTRUCTOR")
 @Table(name = "instructors")
+@Data
 public class Instructor {
 
     @Id
@@ -42,59 +44,5 @@ public class Instructor {
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
-    public Instructor() {
-    }
 
-    public Instructor(String firstName, String lastName) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public Department getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(Department department) {
-        this.department = department;
-    }
-
-    public Set<TimeSlot> getPreferences() {
-        return preferences;
-    }
-
-    public void setPreferences(Set<TimeSlot> preferences) {
-        this.preferences = preferences;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
 }
