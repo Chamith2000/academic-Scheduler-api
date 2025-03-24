@@ -34,4 +34,6 @@ public class ScheduleResult {
 
     private String message;
 
+    public ScheduleResult(List<Schedule> value, String key) {
+    }
 }
