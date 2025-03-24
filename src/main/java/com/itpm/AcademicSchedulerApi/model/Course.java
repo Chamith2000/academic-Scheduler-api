@@ -52,4 +52,7 @@ public class Course {
     private Instructor instructor;
 
 
+    public boolean isCommonCourse() {
+        return this.courseCode.startsWith("CCS");
+    }
 }
