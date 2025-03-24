@@ -4,12 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Set;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SectionDTO {
-    private Long id;
-    private int numberOfClasses;
-    private String courseName;
+public class InstructorPreferencesDto {
+    private String instructorName;
+    private Set<PreferenceDto> preferences;
+
 
 }

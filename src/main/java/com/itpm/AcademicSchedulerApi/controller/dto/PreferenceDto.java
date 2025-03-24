@@ -4,12 +4,17 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SectionDTO {
+public class PreferenceDto {
     private Long id;
-    private int numberOfClasses;
-    private String courseName;
+    private String day;
+    private LocalTime startTime;
 
+
+    public PreferenceDto(String day, LocalTime startTime) {
+    }
 }
+
