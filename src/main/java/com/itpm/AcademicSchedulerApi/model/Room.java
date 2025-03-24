@@ -44,4 +44,15 @@ public class Room {
             inverseJoinColumns = @JoinColumn(name = "dept_id"))
     private List<Department> departments = new ArrayList<>();
 
+    public void occupyTimeSlot(TimeSlot timeSlot) {
+        occupiedTimeSlots.add(timeSlot);
+    }
+
+    public boolean isAvailable(TimeSlot timeSlot) {
+        return !occupiedTimeSlots.contains(timeSlot);
+    }
+    public void freeTimeSlot(TimeSlot timeSlot) {
+        occupiedTimeSlots.remove(timeSlot);
+    }
+
 }
