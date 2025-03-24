@@ -7,9 +7,13 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SectionDTO {
+public class InstructorDTO {
     private Long id;
-    private int numberOfClasses;
-    private String courseName;
+    private String firstName;
+    private String lastName;
+    private String deptName;
 
+
+    public InstructorDTO(String firstName, String lastName, String name) {
+    }
 }

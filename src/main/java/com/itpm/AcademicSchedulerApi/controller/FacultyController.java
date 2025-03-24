@@ -1,0 +1,63 @@
+package com.itpm.AcademicSchedulerApi.controller;
+
+
+import com.itpm.AcademicSchedulerApi.controller.dto.FacultyDTO;
+import com.itpm.AcademicSchedulerApi.model.Faculty;
+import com.itpm.AcademicSchedulerApi.service.FacultyService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/faculties")
+@PreAuthorize("hasAuthority('ADMIN')")
+public class FacultyController {
+
+
+    private final FacultyService facultyService;
+
+    @Autowired
+    public FacultyController(FacultyService facultyService) {
+        this.facultyService = facultyService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Faculty> createFaculty(@RequestBody FacultyDTO facultyDTO) {
+        Faculty createdFaculty = facultyService.createFaculty(facultyDTO);
+        return new ResponseEntity<>(createdFaculty, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<FacultyDTO> updateFaculty(@PathVariable Long id, @RequestBody FacultyDTO facultyDTO) {
+        FacultyDTO updatedFaculty = facultyService.updateFaculty(id, facultyDTO);
+        return new ResponseEntity<>(updatedFaculty, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteFaculty(@PathVariable Long id) {
+        facultyService.deleteFaculty(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Faculty> getFacultyById(@PathVariable Long id) {
+        Optional<Faculty> facultyOptional = facultyService.getFacultyById(id);
+        if (facultyOptional.isPresent()) {
+            return new ResponseEntity<>(facultyOptional.get(), HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+
+    @GetMapping
+    public ResponseEntity<List<FacultyDTO>> getAllFaculties() {
+        List<FacultyDTO> faculties = facultyService.getAllFaculties();
+        return new ResponseEntity<>(faculties, HttpStatus.OK);
+    }
+}
