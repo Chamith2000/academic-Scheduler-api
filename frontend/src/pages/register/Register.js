@@ -1,4 +1,3 @@
-// Register.js
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -16,6 +15,14 @@ export default function Register() {
     const [matchPwd, setMatchPwd] = useState("");
     const [errMsg, setErrMsg] = useState("");
 
+    // New state for validation
+    const [validations, setValidations] = useState({
+        username: { isValid: false, message: "" },
+        email: { isValid: false, message: "" },
+        password: { isValid: false, message: "" },
+        confirmPassword: { isValid: false, message: "" }
+    });
+
     useEffect(() => {
         userRef.current.focus();
     }, []);
@@ -24,12 +31,142 @@ export default function Register() {
         setErrMsg("");
     }, [user, email, pwd, matchPwd]);
 
+    // Username validation
+    const validateUsername = (username) => {
+        if (username.length < 3) {
+            return {
+                isValid: false,
+                message: "Username must be at least 3 characters long"
+            };
+        }
+        if (username.length > 20) {
+            return {
+                isValid: false,
+                message: "Username must not exceed 20 characters"
+            };
+        }
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (!usernameRegex.test(username)) {
+            return {
+                isValid: false,
+                message: "Username can only contain letters, numbers, and underscores"
+            };
+        }
+        return { isValid: true, message: "" };
+    };
+
+    // Email validation
+    const validateEmail = (emailAddress) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailAddress) {
+            return {
+                isValid: false,
+                message: "Email is required"
+            };
+        }
+        if (!emailRegex.test(emailAddress)) {
+            return {
+                isValid: false,
+                message: "Please enter a valid email address"
+            };
+        }
+        return { isValid: true, message: "" };
+    };
+
+    // Password validation
+    const validatePassword = (password) => {
+        if (password.length < 8) {
+            return {
+                isValid: false,
+                message: "Password must be at least 8 characters long"
+            };
+        }
+        if (password.length > 50) {
+            return {
+                isValid: false,
+                message: "Password must not exceed 50 characters"
+            };
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return {
+                isValid: false,
+                message: "Password must include uppercase, lowercase, number, and special character"
+            };
+        }
+        return { isValid: true, message: "" };
+    };
+
+    // Confirm password validation
+    const validateConfirmPassword = (password, confirmPassword) => {
+        if (password !== confirmPassword) {
+            return {
+                isValid: false,
+                message: "Passwords do not match"
+            };
+        }
+        return { isValid: true, message: "" };
+    };
+
+    // Handle input changes with validation
+    const handleUsernameChange = (e) => {
+        const newUsername = e.target.value;
+        setUser(newUsername);
+        setValidations(prev => ({
+            ...prev,
+            username: validateUsername(newUsername)
+        }));
+    };
+
+    const handleEmailChange = (e) => {
+        const newEmail = e.target.value;
+        setEmail(newEmail);
+        setValidations(prev => ({
+            ...prev,
+            email: validateEmail(newEmail)
+        }));
+    };
+
+    const handlePasswordChange = (e) => {
+        const newPassword = e.target.value;
+        setPwd(newPassword);
+        setValidations(prev => ({
+            ...prev,
+            password: validatePassword(newPassword),
+            confirmPassword: validateConfirmPassword(newPassword, matchPwd)
+        }));
+    };
+
+    const handleConfirmPasswordChange = (e) => {
+        const newConfirmPassword = e.target.value;
+        setMatchPwd(newConfirmPassword);
+        setValidations(prev => ({
+            ...prev,
+            confirmPassword: validateConfirmPassword(pwd, newConfirmPassword)
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Basic validation
-        if (pwd !== matchPwd) {
-            setErrMsg("Passwords do not match");
+        // Validate all fields before submission
+        const usernameValidation = validateUsername(user);
+        const emailValidation = validateEmail(email);
+        const passwordValidation = validatePassword(pwd);
+        const confirmPasswordValidation = validateConfirmPassword(pwd, matchPwd);
+
+        setValidations({
+            username: usernameValidation,
+            email: emailValidation,
+            password: passwordValidation,
+            confirmPassword: confirmPasswordValidation
+        });
+
+        // Check if all validations pass
+        if (!(usernameValidation.isValid &&
+            emailValidation.isValid &&
+            passwordValidation.isValid &&
+            confirmPasswordValidation.isValid)) {
             return;
         }
 
@@ -127,13 +264,20 @@ export default function Register() {
                                         ref={userRef}
                                         name="username"
                                         id="username"
-                                        className="pl-10 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 transition-all duration-200"
-                                        placeholder= "      Enter your username"
+                                        className={`pl-10 w-full py-3 border rounded-lg transition-all duration-200 
+                                            ${!validations.username.isValid && user ? 'border-red-500 bg-red-50' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'}
+                                            focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400`}
+                                        placeholder="      Enter your username"
                                         value={user}
-                                        onChange={(e) => setUser(e.target.value)}
+                                        onChange={handleUsernameChange}
                                         required
                                     />
                                 </div>
+                                {!validations.username.isValid && user && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {validations.username.message}
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -154,14 +298,21 @@ export default function Register() {
                                         type="email"
                                         name="email"
                                         id="email"
-                                        className="pl-10 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 transition-all duration-200"
+                                        className={`pl-10 w-full py-3 border rounded-lg transition-all duration-200 
+                                            ${!validations.email.isValid && email ? 'border-red-500 bg-red-50' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'}
+                                            focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400`}
                                         style={{ width: "100%" }}
                                         placeholder="Enter your email"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={handleEmailChange}
                                         required
                                     />
                                 </div>
+                                {!validations.email.isValid && email && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {validations.email.message}
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -183,12 +334,19 @@ export default function Register() {
                                         name="password"
                                         id="password"
                                         placeholder=" ••••••••"
-                                        className="pl-10 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 transition-all duration-200"
+                                        className={`pl-10 w-full py-3 border rounded-lg transition-all duration-200 
+                                            ${!validations.password.isValid && pwd ? 'border-red-500 bg-red-50' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'}
+                                            focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400`}
                                         value={pwd}
-                                        onChange={(e) => setPwd(e.target.value)}
+                                        onChange={handlePasswordChange}
                                         required
                                     />
                                 </div>
+                                {!validations.password.isValid && pwd && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {validations.password.message}
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -210,12 +368,19 @@ export default function Register() {
                                         name="confirm-password"
                                         id="confirm-password"
                                         placeholder=" ••••••••"
-                                        className="pl-10 w-full py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 transition-all duration-200"
+                                        className={`pl-10 w-full py-3 border rounded-lg transition-all duration-200 
+                                            ${!validations.confirmPassword.isValid && matchPwd ? 'border-red-500 bg-red-50' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'}
+                                            focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400`}
                                         value={matchPwd}
-                                        onChange={(e) => setMatchPwd(e.target.value)}
+                                        onChange={handleConfirmPasswordChange}
                                         required
                                     />
                                 </div>
+                                {!validations.confirmPassword.isValid && matchPwd && (
+                                    <p className="text-red-500 text-xs mt-1">
+                                        {validations.confirmPassword.message}
+                                    </p>
+                                )}
                             </div>
 
                             <button
