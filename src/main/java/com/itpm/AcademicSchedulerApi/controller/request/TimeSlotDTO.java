@@ -15,13 +15,4 @@ public class TimeSlotDTO {
     private LocalTime startTime;
     private LocalTime endTime;
 
-
-    @Override
-    public String toString() {
-        return "TimeSlotDTO{" +
-                "day='" + day + '\'' +
-                ", startTime='" + startTime + '\'' +
-                ", endTime='" + endTime + '\'' +
-                '}';
-    }
 }
