@@ -71,18 +71,18 @@ export default function DashboardLayout({ children }) {
                                 {sidebarOpen && <span className="ml-3">Rooms</span>}
                             </Link>
                         </li>
-                        <li>
-                            <Link to="/section" className="flex items-center px-4 py-3 hover:bg-indigo-700 transition-colors">
-                                <SiGoogleclassroom size={20} className="flex-shrink-0" />
-                                {sidebarOpen && <span className="ml-3">Sections</span>}
-                            </Link>
-                        </li>
 
                         {/* Admin Section - Only visible to admins */}
                         {userRole === "admin" && (
                             <>
                                 <li className="pt-4 pb-2 px-4">
                                     {sidebarOpen && <span className="text-xs text-indigo-300 font-semibold uppercase tracking-wider">Admin Controls</span>}
+                                </li>
+                                <li>
+                                    <Link to="/section" className="flex items-center px-4 py-3 hover:bg-indigo-700 transition-colors">
+                                        <SiGoogleclassroom size={20} className="flex-shrink-0" />
+                                        {sidebarOpen && <span className="ml-3">Sections</span>}
+                                    </Link>
                                 </li>
                                 <li>
                                     <Link to="/faculty" className="flex items-center px-4 py-3 hover:bg-indigo-700 transition-colors">
