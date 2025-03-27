@@ -21,8 +21,17 @@ const Course = () => {
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [deletingCourseId, setDeletingCourseId] = useState(null);
     const { auth } = useAuth();
     const navigate = useNavigate();
+
+    // Validation states
+    const [errors, setErrors] = useState({
+        courseCode: "",
+        courseName: "",
+        year: "",
+        semester: ""
+    });
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -41,6 +50,59 @@ const Course = () => {
     const currentCourses = filteredCourses.slice(indexOfFirstRecord, indexOfLastRecord);
     const isFirstPage = currentPage === 1;
     const isLastPage = indexOfLastRecord >= filteredCourses.length;
+
+    // Validation functions
+    const validateCourseCode = (value) => {
+        if (!value) return "Course code is required";
+        // if (!/^[A-Z]{2,4}\d{3}$/.test(value)) return "Course code must be 2-4 letters followed by 3 numbers (e.g., CS101)";
+        return "";
+    };
+
+    const validateCourseName = (value) => {
+        if (!value) return "Course name is required";
+        if (value.length < 3) return "Course name must be at least 3 characters";
+        if (value.length > 100) return "Course name must not exceed 100 characters";
+        return "";
+    };
+
+    const validateYear = (value) => {
+        if (!value) return "Year is required";
+        const num = parseInt(value);
+        if (isNaN(num) || num < 1 || num > 6) return "Year must be between 1 and 6";
+        return "";
+    };
+
+    const validateSemester = (value) => {
+        if (!value) return "Semester is required";
+        const num = parseInt(value);
+        if (isNaN(num) || num < 1 || num > 2) return "Semester must be 1 or 2";
+        return "";
+    };
+
+    // Handle input changes with validation
+    const handleCourseCodeChange = (e) => {
+        const value = e.target.value;
+        setCourseCode(value);
+        setErrors(prev => ({ ...prev, courseCode: validateCourseCode(value) }));
+    };
+
+    const handleCourseNameChange = (e) => {
+        const value = e.target.value;
+        setCourseName(value);
+        setErrors(prev => ({ ...prev, courseName: validateCourseName(value) }));
+    };
+
+    const handleYearChange = (e) => {
+        const value = e.target.value;
+        setYear(value);
+        setErrors(prev => ({ ...prev, year: validateYear(value) }));
+    };
+
+    const handleSemesterChange = (e) => {
+        const value = e.target.value;
+        setSemester(value);
+        setErrors(prev => ({ ...prev, semester: validateSemester(value) }));
+    };
 
     function handleNextPage() {
         setCurrentPage((prev) => prev + 1);
@@ -112,11 +174,31 @@ const Course = () => {
         setSelectedProgrammeName(programmes.length > 0 ? programmes[0].programmeName : "");
         setSelectedDeptName(departments.length > 0 ? departments[0].deptName : "");
         setSelectedInstructorName(instructors.length > 0 ? instructors[0].firstName : "");
-        setEditingCourseId(null); // Ensure editing ID is reset
+        setEditingCourseId(null);
+        setErrors({ courseCode: "", courseName: "", year: "", semester: "" });
     };
 
     const addCourse = (e) => {
         e.preventDefault();
+
+        // Validate all fields before submission
+        const codeError = validateCourseCode(courseCode);
+        const nameError = validateCourseName(courseName);
+        const yearError = validateYear(year);
+        const semesterError = validateSemester(semester);
+
+        setErrors({
+            courseCode: codeError,
+            courseName: nameError,
+            year: yearError,
+            semester: semesterError
+        });
+
+        if (codeError || nameError || yearError || semesterError) {
+            showToast("Please fix all validation errors before submitting.", "error");
+            return;
+        }
+
         const newCourse = {
             courseCode,
             courseName,
@@ -142,13 +224,29 @@ const Course = () => {
             });
     };
 
-    // Updated updateCourse function to match updateDepartment's partial update logic
     const updateCourse = (e) => {
         e.preventDefault();
+
+        const codeError = validateCourseCode(courseCode);
+        const nameError = validateCourseName(courseName);
+        const yearError = validateYear(year);
+        const semesterError = validateSemester(semester);
+
+        setErrors({
+            courseCode: codeError,
+            courseName: nameError,
+            year: yearError,
+            semester: semesterError
+        });
+
+        if (codeError || nameError || yearError || semesterError) {
+            showToast("Please fix all validation errors before submitting.", "error");
+            return;
+        }
+
         const courseToEdit = courses.find(course => course.id === editingCourseId);
         if (!courseToEdit) return;
 
-        // Create an object with only the changed fields
         const updatedFields = {};
         if (courseCode && courseCode !== courseToEdit.courseCode) updatedFields.courseCode = courseCode;
         if (courseName && courseName !== courseToEdit.courseName) updatedFields.courseName = courseName;
@@ -158,7 +256,6 @@ const Course = () => {
         if (selectedDeptName && selectedDeptName !== courseToEdit.deptName) updatedFields.deptName = selectedDeptName;
         if (selectedInstructorName && selectedInstructorName !== courseToEdit.instructorName) updatedFields.instructorName = selectedInstructorName;
 
-        // If no fields have changed, show a message and return
         if (Object.keys(updatedFields).length === 0) {
             showToast("No changes detected.", "info");
             setShowModal(false);
@@ -166,7 +263,7 @@ const Course = () => {
         }
 
         axios
-            .patch(`http://localhost:8080/api/courses/${editingCourseId}`, updatedFields, {
+            .put(`http://localhost:8080/api/courses/${editingCourseId}`, updatedFields, {
                 headers: {
                     Authorization: `Bearer ${auth.accessToken}`,
                     'Content-Type': 'application/json'
@@ -192,6 +289,9 @@ const Course = () => {
             .then(() => {
                 showToast("Course deleted successfully!", "success");
                 fetchCourses();
+                if (currentCourses.length === 1 && currentPage > 1) {
+                    setCurrentPage(currentPage - 1);
+                }
             })
             .catch((error) => {
                 console.error(`Error: ${error}`);
@@ -211,6 +311,13 @@ const Course = () => {
             setSelectedProgrammeName(courseToEdit.programmeName);
             setSelectedDeptName(courseToEdit.deptName);
             setSelectedInstructorName(courseToEdit.instructorName);
+            // Validate initial values
+            setErrors({
+                courseCode: validateCourseCode(courseToEdit.courseCode),
+                courseName: validateCourseName(courseToEdit.courseName),
+                year: validateYear(courseToEdit.year.toString()),
+                semester: validateSemester(courseToEdit.semester.toString())
+            });
         }
     };
 
@@ -286,7 +393,7 @@ const Course = () => {
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder=" Search courses..."
+                                    placeholder="      Search courses..."
                                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -344,14 +451,14 @@ const Course = () => {
                                                 <td className="px-6 py-4">{course.year}</td>
                                                 <td className="px-6 py-4">{course.semester}</td>
                                                 <td className="px-6 py-4">
-                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                              {course.programmeName}
-                            </span>
+                                                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                        {course.programmeName}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                              {course.deptName}
-                            </span>
+                                                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                        {course.deptName}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-4">{course.instructorName}</td>
                                                 <td className="px-6 py-4">
@@ -362,31 +469,12 @@ const Course = () => {
                                                         >
                                                             <Edit size={16} />
                                                         </button>
-                                                        <label
-                                                            htmlFor={`delete-modal-${course.id}`}
-                                                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-100 rounded-full transition-colors cursor-pointer"
+                                                        <button
+                                                            onClick={() => setDeletingCourseId(course.id)}
+                                                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-100 rounded-full transition-colors"
                                                         >
                                                             <Trash2 size={16} />
-                                                        </label>
-                                                        <input type="checkbox" id={`delete-modal-${course.id}`} className="modal-toggle" />
-                                                        <div className="modal">
-                                                            <div className="modal-box bg-white">
-                                                                <h3 className="font-bold text-lg text-gray-900">Confirm Delete</h3>
-                                                                <p className="py-4 text-gray-600">
-                                                                    Are you sure you want to delete the course <strong>{course.courseName}</strong>? This action cannot be undone.
-                                                                </p>
-                                                                <div className="modal-action">
-                                                                    <label htmlFor={`delete-modal-${course.id}`} className="btn btn-outline">Cancel</label>
-                                                                    <label
-                                                                        htmlFor={`delete-modal-${course.id}`}
-                                                                        className="btn bg-red-600 hover:bg-red-700 text-white border-0"
-                                                                        onClick={() => handleDelete(course.id)}
-                                                                    >
-                                                                        Delete
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -425,6 +513,7 @@ const Course = () => {
                         </>
                     )}
                 </section>
+
                 {/* Add/Edit Course Modal */}
                 {showModal && (
                     <div className="modal modal-open">
@@ -452,10 +541,14 @@ const Course = () => {
                                         <input
                                             type="text"
                                             placeholder="e.g. CS101"
-                                            className="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.courseCode ? 'border-red-500' : ''}`}
                                             value={courseCode}
-                                            onChange={(e) => setCourseCode(e.target.value)}
+                                            onChange={handleCourseCodeChange}
+                                            required
                                         />
+                                        {errors.courseCode && (
+                                            <span className="text-red-500 text-sm mt-1">{errors.courseCode}</span>
+                                        )}
                                     </div>
                                     <div className="form-control">
                                         <label className="label">
@@ -464,10 +557,14 @@ const Course = () => {
                                         <input
                                             type="text"
                                             placeholder="e.g. Introduction to Programming"
-                                            className="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.courseName ? 'border-red-500' : ''}`}
                                             value={courseName}
-                                            onChange={(e) => setCourseName(e.target.value)}
+                                            onChange={handleCourseNameChange}
+                                            required
                                         />
+                                        {errors.courseName && (
+                                            <span className="text-red-500 text-sm mt-1">{errors.courseName}</span>
+                                        )}
                                     </div>
                                     <div className="form-control">
                                         <label className="label">
@@ -478,10 +575,14 @@ const Course = () => {
                                             min="1"
                                             max="6"
                                             placeholder="1-6"
-                                            className="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.year ? 'border-red-500' : ''}`}
                                             value={year}
-                                            onChange={(e) => setYear(e.target.value)}
+                                            onChange={handleYearChange}
+                                            required
                                         />
+                                        {errors.year && (
+                                            <span className="text-red-500 text-sm mt-1">{errors.year}</span>
+                                        )}
                                     </div>
                                     <div className="form-control">
                                         <label className="label">
@@ -492,10 +593,14 @@ const Course = () => {
                                             min="1"
                                             max="2"
                                             placeholder="1-2"
-                                            className="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.semester ? 'border-red-500' : ''}`}
                                             value={semester}
-                                            onChange={(e) => setSemester(e.target.value)}
+                                            onChange={handleSemesterChange}
+                                            required
                                         />
+                                        {errors.semester && (
+                                            <span className="text-red-500 text-sm mt-1">{errors.semester}</span>
+                                        )}
                                     </div>
                                     <div className="form-control">
                                         <label className="label">
@@ -505,6 +610,7 @@ const Course = () => {
                                             className="select select-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             value={selectedProgrammeName}
                                             onChange={(e) => setSelectedProgrammeName(e.target.value)}
+                                            required
                                         >
                                             {programmes.map((programme) => (
                                                 <option key={programme.id} value={programme.programmeName}>
@@ -521,6 +627,7 @@ const Course = () => {
                                             className="select select-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             value={selectedDeptName}
                                             onChange={(e) => setSelectedDeptName(e.target.value)}
+                                            required
                                         >
                                             {departments.map((department) => (
                                                 <option key={department.id} value={department.deptName}>
@@ -537,6 +644,7 @@ const Course = () => {
                                             className="select select-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             value={selectedInstructorName}
                                             onChange={(e) => setSelectedInstructorName(e.target.value)}
+                                            required
                                         >
                                             {instructors.map((instructor) => (
                                                 <option key={instructor.id} value={instructor.firstName}>
@@ -565,6 +673,35 @@ const Course = () => {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {deletingCourseId && (
+                    <div className="modal modal-open">
+                        <div className="modal-box bg-white">
+                            <h3 className="font-bold text-lg text-gray-900">Confirm Delete</h3>
+                            <p className="py-4 text-gray-600">
+                                Are you sure you want to delete this course? This action cannot be undone.
+                            </p>
+                            <div className="modal-action">
+                                <button
+                                    className="btn btn-outline"
+                                    onClick={() => setDeletingCourseId(null)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="btn bg-red-600 hover:bg-red-700 text-white border-0"
+                                    onClick={() => {
+                                        handleDelete(deletingCourseId);
+                                        setDeletingCourseId(null);
+                                    }}
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

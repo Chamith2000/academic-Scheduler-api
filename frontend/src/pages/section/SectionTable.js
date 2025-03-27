@@ -18,20 +18,19 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
     // Fetch all courses
     const fetchCourses = () => {
         axios
-            .get("http://localhost:8080/api/courses/", {
+            .get("http://localhost:8080/api/courses", {
                 headers: {
                     Authorization: `Bearer ${auth.accessToken}`,
                 },
             })
             .then((response) => {
                 setCourses(response.data);
-                // If editing a section and no course is selected, set the first course
                 if (response.data.length > 0 && !selectedCourseName && currentSection) {
                     setSelectedCourseName(response.data[0].courseName);
                 }
             })
             .catch((error) => {
-                console.error(`Error: ${error}`);
+                console.error("Failed to fetch courses:", error);
                 toast.error("Failed to fetch courses");
             });
     };
@@ -41,6 +40,7 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
     }, [isEditModalOpen]);
 
     const openEditModal = (section) => {
+        console.log("Editing section:", section);
         setCurrentSection(section);
         setNumberOfClasses(section.numberOfClasses);
         setSelectedCourseName(section.courseName);
@@ -48,7 +48,10 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
     };
 
     const handleSectionUpdate = () => {
-        if (!currentSection) return;
+        if (!currentSection) {
+            toast.error("No section selected for update");
+            return;
+        }
 
         if (!numberOfClasses) {
             toast.error("Please enter number of classes");
@@ -56,16 +59,17 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
         }
 
         const updatedSection = {
-            id: currentSection.section_id,
+            id: currentSection.id || currentSection.section_id,
             numberOfClasses: numberOfClasses,
             courseName: selectedCourseName,
         };
 
         setIsLoading(true);
         axios
-            .put(`http://localhost:8080/api/sections/${currentSection.section_id}`, updatedSection, {
+            .put(`http://localhost:8080/api/sections/${updatedSection.id}`, updatedSection, {
                 headers: {
                     Authorization: `Bearer ${auth.accessToken}`,
+                    'Content-Type': 'application/json'
                 },
             })
             .then((response) => {
@@ -75,31 +79,51 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
                 setIsLoading(false);
             })
             .catch((error) => {
-                console.error(`Error: ${error}`);
-                toast.error("Failed to update section");
+                console.error("Failed to update section:", error.response ? error.response.data : error);
+                toast.error(`Failed to update section: ${error.response?.data?.message || error.message}`);
                 setIsLoading(false);
             });
     };
 
-    const handleDeleteSection = (sectionId) => {
+    const handleDeleteSection = async (sectionId) => {
+        if (!sectionId) {
+            toast.error("Invalid section ID");
+            return;
+        }
+
         if (window.confirm("Are you sure you want to delete this section?")) {
-            setIsLoading(true);
-            axios
-                .delete(`http://localhost:8080/api/sections/${sectionId}`, {
+            try {
+                setIsLoading(true);
+                console.log("Attempting to delete section with ID:", sectionId);
+
+                const response = await axios.delete(`http://localhost:8080/api/sections/${sectionId}`, {
                     headers: {
                         Authorization: `Bearer ${auth.accessToken}`,
+                        "Content-Type": "application/json"
                     },
-                })
-                .then((response) => {
+                });
+
+                if (response.status === 200 || response.status === 204) {
                     toast.success("Section deleted successfully");
                     if (onSectionUpdated) onSectionUpdated();
-                    setIsLoading(false);
-                })
-                .catch((error) => {
-                    console.error(`Error: ${error}`);
-                    toast.error("Failed to delete section");
-                    setIsLoading(false);
+                } else {
+                    toast.error("Failed to delete section: Unexpected response");
+                }
+            } catch (error) {
+                console.error("Delete error details:", {
+                    message: error.message,
+                    response: error.response?.data,
+                    status: error.response?.status
                 });
+
+                const errorMessage = error.response?.data?.message ||
+                    error.response?.data?.error ||
+                    error.message ||
+                    "Unknown error occurred";
+                toast.error(`Failed to delete section: ${errorMessage}`);
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -131,7 +155,7 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                         {sections.map((section) => (
-                            <tr key={section.section_id} className="hover:bg-gray-50">
+                            <tr key={section.id || section.section_id} className="hover:bg-gray-50">
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <div className="flex items-center">
                                         <div className="h-8 w-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mr-3">
@@ -141,9 +165,9 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
                                     </div>
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
-                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md">
-                      {section.courseName}
-                    </span>
+                                    <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md">
+                                        {section.courseName}
+                                    </span>
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
                                     <button
@@ -158,12 +182,16 @@ const SectionTable = ({ sections, onSectionUpdated }) => {
                                     </button>
                                     <button
                                         className="text-red-600 hover:text-red-800 transition duration-300 p-1 rounded-full hover:bg-red-100"
-                                        onClick={() => handleDeleteSection(section.section_id)}
+                                        onClick={() => handleDeleteSection(section.id)}  // Use section.id directly
                                         title="Delete Section"
+                                        disabled={isLoading}
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24"
+                                             fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                                             strokeLinejoin="round">
                                             <polyline points="3 6 5 6 21 6"/>
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                            <path
+                                                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                             <line x1="10" y1="11" x2="10" y2="17"/>
                                             <line x1="14" y1="11" x2="14" y2="17"/>
                                         </svg>

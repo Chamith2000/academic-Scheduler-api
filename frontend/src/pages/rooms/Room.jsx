@@ -21,6 +21,12 @@ const Room = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
 
+    // Validation states
+    const [validations, setValidations] = useState({
+        roomName: { isValid: true, message: "" },
+        roomCapacity: { isValid: true, message: "" }
+    });
+
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [recordsPerPage] = useState(10);
@@ -39,6 +45,69 @@ const Room = () => {
 
     const { auth } = useAuth();
     const navigate = useNavigate();
+
+    // Validation functions
+    const validateRoomName = (name) => {
+        if (!name) {
+            return { isValid: false, message: "Room name is required" };
+        }
+        if (name.length < 3) {
+            return { isValid: false, message: "Room name must be at least 3 characters" };
+        }
+        if (!/^[a-zA-Z0-9\s-]+$/.test(name)) {
+            return { isValid: false, message: "Room name can only contain letters, numbers, spaces, and hyphens" };
+        }
+        return { isValid: true, message: "" };
+    };
+
+    const validateRoomCapacity = (capacity) => {
+        if (!capacity) {
+            return { isValid: false, message: "Room capacity is required" };
+        }
+        const capacityNum = parseInt(capacity);
+        if (isNaN(capacityNum)) {
+            return { isValid: false, message: "Capacity must be a number" };
+        }
+        if (capacityNum < 20) {
+            return { isValid: false, message: "Capacity must be at least 20" };
+        }
+        if (capacityNum > 1000) {
+            return { isValid: false, message: "Capacity cannot exceed 1000" };
+        }
+        return { isValid: true, message: "" };
+    };
+
+    // Validation handlers
+    const handleRoomNameChange = (e) => {
+        const value = e.target.value;
+        setRoomName(value);
+        setValidations(prev => ({
+            ...prev,
+            roomName: validateRoomName(value)
+        }));
+    };
+
+    const handleRoomCapacityChange = (e) => {
+        const value = e.target.value;
+        setRoomCapacity(value);
+        setValidations(prev => ({
+            ...prev,
+            roomCapacity: validateRoomCapacity(value)
+        }));
+    };
+
+    // Form validation before submission
+    const validateForm = () => {
+        const roomNameValidation = validateRoomName(roomName);
+        const roomCapacityValidation = validateRoomCapacity(roomCapacity);
+
+        setValidations({
+            roomName: roomNameValidation,
+            roomCapacity: roomCapacityValidation
+        });
+
+        return roomNameValidation.isValid && roomCapacityValidation.isValid;
+    };
 
     function handleNextPage() {
         setCurrentPage((prev) => prev + 1);
@@ -94,10 +163,21 @@ const Room = () => {
         setSelectedDeptName(departments.length > 0 ? departments[0].deptName : "");
         setIsEditing(false);
         setEditingRoomId(null);
+        // Reset validations
+        setValidations({
+            roomName: { isValid: true, message: "" },
+            roomCapacity: { isValid: true, message: "" }
+        });
     };
 
     const addRoom = (e) => {
         e.preventDefault();
+
+        // Validate form before submission
+        if (!validateForm()) {
+            return;
+        }
+
         const newRoom = {
             roomName,
             roomCapacity,
@@ -126,6 +206,12 @@ const Room = () => {
 
     const updateRoom = (e) => {
         e.preventDefault();
+
+        // Validate form before submission
+        if (!validateForm()) {
+            return;
+        }
+
         const updatedRoom = {
             id: editingRoomId,
             roomName,
@@ -179,6 +265,12 @@ const Room = () => {
         setIsAvailable(room.available);
         setSelectedDeptName(room.deptName);
         setShowModal(true);
+
+        // Reset validations when editing
+        setValidations({
+            roomName: validateRoomName(room.roomName),
+            roomCapacity: validateRoomCapacity(room.roomCapacity)
+        });
     };
 
     const showToast = (message, type = "info") => {
@@ -423,11 +515,20 @@ const Room = () => {
                                         <input
                                             type="text"
                                             placeholder="e.g. Room 101"
-                                            className="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 ${
+                                                validations.roomName.isValid
+                                                    ? 'focus:ring-blue-500'
+                                                    : 'border-red-500 focus:ring-red-500'
+                                            }`}
                                             value={roomName}
-                                            onChange={(e) => setRoomName(e.target.value)}
+                                            onChange={handleRoomNameChange}
                                             required
                                         />
+                                        {!validations.roomName.isValid && (
+                                            <p className="text-red-500 text-xs mt-1">
+                                                {validations.roomName.message}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="form-control">
                                         <label className="label">
@@ -436,11 +537,20 @@ const Room = () => {
                                         <input
                                             type="number"
                                             placeholder="Capacity"
-                                            className="input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 ${
+                                                validations.roomCapacity.isValid
+                                                    ? 'focus:ring-blue-500'
+                                                    : 'border-red-500 focus:ring-red-500'
+                                            }`}
                                             value={roomCapacity}
-                                            onChange={(e) => setRoomCapacity(e.target.value)}
+                                            onChange={handleRoomCapacityChange}
                                             required
                                         />
+                                        {!validations.roomCapacity.isValid && (
+                                            <p className="text-red-500 text-xs mt-1">
+                                                {validations.roomCapacity.message}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="form-control">
                                         <label className="label">

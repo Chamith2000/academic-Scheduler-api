@@ -1,9 +1,34 @@
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PlusCircle, Edit, Trash2, Search, AlertCircle, CheckCircle } from 'lucide-react';
 import DashboardLayout from '../Layout/DashboardLayout'; // Adjust path as needed
 import useAuth from "../hooks/useAuth";
+
+// Validation utility functions
+const validateDepartmentCode = (code) => {
+    // Department code should be alphanumeric and between 2-10 characters
+    const codeRegex = /^[A-Z0-9]{2,10}$/;
+    return {
+        isValid: codeRegex.test(code),
+        message: 'Department code must be 2-10 uppercase alphanumeric characters'
+    };
+};
+
+const validateDepartmentName = (name) => {
+    // Department name should be 3-100 characters, allow spaces and some special characters
+    const nameRegex = /^[A-Za-z0-9\s&().-]{3,100}$/;
+    return {
+        isValid: nameRegex.test(name),
+        message: 'Department name must be 3-100 characters, allowing letters, numbers, spaces, and some special characters'
+    };
+};
+
+const validateFacultySelection = (facultyName, faculties) => {
+    return {
+        isValid: faculties.some(faculty => faculty.facultyName === facultyName),
+        message: 'Please select a valid faculty'
+    };
+};
 
 const Department = () => {
     const [departments, setDepartments] = useState([]);
@@ -17,6 +42,11 @@ const Department = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingDeptId, setEditingDeptId] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [validationErrors, setValidationErrors] = useState({
+        deptCode: '',
+        deptName: '',
+        facultyName: ''
+    });
     const { auth } = useAuth();
 
     // Fetch all departments
@@ -57,18 +87,52 @@ const Department = () => {
             });
     };
 
+    // Validation form method
+    const validateForm = () => {
+        const errors = {
+            deptCode: '',
+            deptName: '',
+            facultyName: ''
+        };
+
+        // Validate department code
+        const codeValidation = validateDepartmentCode(deptCode);
+        if (!codeValidation.isValid) {
+            errors.deptCode = codeValidation.message;
+        }
+
+        // Validate department name
+        const nameValidation = validateDepartmentName(deptName);
+        if (!nameValidation.isValid) {
+            errors.deptName = nameValidation.message;
+        }
+
+        // Validate faculty selection
+        const facultyValidation = validateFacultySelection(selectedFacultyName, faculties);
+        if (!facultyValidation.isValid) {
+            errors.facultyName = facultyValidation.message;
+        }
+
+        setValidationErrors(errors);
+        return Object.values(errors).every(error => error === '');
+    };
+
     // Add a new department
     const addDepartment = (e) => {
         e.preventDefault();
-        if (!deptCode || !deptName || !selectedFacultyName) {
-            setError('Please fill in all fields');
+
+        // Perform validation before submission
+        if (!validateForm()) {
+            showToast('Please correct the errors in the form', 'error');
             return;
         }
+
         const newDepartment = {
             deptCode: deptCode,
             deptName: deptName,
             facultyName: selectedFacultyName
         };
+
         axios.post('http://localhost:8080/api/departments', newDepartment, {
             headers: {
                 Authorization: `Bearer ${auth.accessToken}`,
@@ -77,31 +141,33 @@ const Department = () => {
         })
             .then(response => {
                 showToast('Department added successfully!', 'success');
-                setError(null);
-                setDeptCode('');
-                setDeptName('');
+                resetForm();
                 toggleModal();
                 fetchDepartments();
             })
             .catch(error => {
                 console.error(`Error: ${error}`);
-                showToast('Failed to add department', 'error');
+                showToast(error.response?.data?.message || 'Failed to add department', 'error');
             });
     };
 
     // Update an existing department
     const updateDepartment = (e) => {
         e.preventDefault();
-        if (!deptCode || !deptName || !selectedFacultyName) {
-            setError('Please fill in all fields');
+
+        // Perform validation before submission
+        if (!validateForm()) {
+            showToast('Please correct the errors in the form', 'error');
             return;
         }
+
         const updatedDepartment = {
             id: editingDeptId,
             deptCode: deptCode,
             deptName: deptName,
             facultyName: selectedFacultyName
         };
+
         axios.put(`http://localhost:8080/api/departments/${editingDeptId}`, updatedDepartment, {
             headers: {
                 Authorization: `Bearer ${auth.accessToken}`,
@@ -110,14 +176,13 @@ const Department = () => {
         })
             .then(response => {
                 showToast('Department updated successfully!', 'success');
-                setError(null);
                 resetForm();
                 toggleModal();
                 fetchDepartments();
             })
             .catch(error => {
                 console.error(`Error: ${error}`);
-                showToast('Failed to update department', 'error');
+                showToast(error.response?.data?.message || 'Failed to update department', 'error');
             });
     };
 
@@ -144,6 +209,11 @@ const Department = () => {
         setDeptName('');
         setSelectedFacultyName(faculties.length > 0 ? faculties[0].facultyName : '');
         setEditingDeptId(null);
+        setValidationErrors({
+            deptCode: '',
+            deptName: '',
+            facultyName: ''
+        });
     };
 
     // Toggle modal visibility
@@ -382,24 +452,27 @@ const Department = () => {
                         </div>
 
                         <form onSubmit={editingDeptId ? updateDepartment : addDepartment} className="p-6">
-                            {error && (
-                                <div className="mb-4 p-4 bg-red-100 text-red-800 rounded-lg flex items-center">
-                                    <AlertCircle size={18} className="mr-2" />
-                                    {error}
-                                </div>
-                            )}
-
                             <div className="mb-4">
                                 <label className="block text-gray-700 text-sm font-medium mb-2">
                                     Department Code
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                        validationErrors.deptCode
+                                            ? 'border-red-500 focus:ring-red-400'
+                                            : 'border-gray-300 focus:ring-blue-600'
+                                    }`}
                                     value={deptCode}
-                                    onChange={(e) => setDeptCode(e.target.value)}
+                                    onChange={(e) => {
+                                        setDeptCode(e.target.value.toUpperCase());
+                                        setValidationErrors(prev => ({...prev, deptCode: ''}));
+                                    }}
                                     required
                                 />
+                                {validationErrors.deptCode && (
+                                    <p className="text-red-500 text-xs mt-1">{validationErrors.deptCode}</p>
+                                )}
                             </div>
 
                             <div className="mb-4">
@@ -408,11 +481,21 @@ const Department = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                        validationErrors.deptName
+                                            ? 'border-red-500 focus:ring-red-400'
+                                            : 'border-gray-300 focus:ring-blue-600'
+                                    }`}
                                     value={deptName}
-                                    onChange={(e) => setDeptName(e.target.value)}
+                                    onChange={(e) => {
+                                        setDeptName(e.target.value);
+                                        setValidationErrors(prev => ({...prev, deptName: ''}));
+                                    }}
                                     required
                                 />
+                                {validationErrors.deptName && (
+                                    <p className="text-red-500 text-xs mt-1">{validationErrors.deptName}</p>
+                                )}
                             </div>
 
                             <div className="mb-6">
@@ -420,9 +503,16 @@ const Department = () => {
                                     Faculty
                                 </label>
                                 <select
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                        validationErrors.facultyName
+                                            ? 'border-red-500 focus:ring-red-400'
+                                            : 'border-gray-300 focus:ring-blue-600'
+                                    }`}
                                     value={selectedFacultyName}
-                                    onChange={(e) => setSelectedFacultyName(e.target.value)}
+                                    onChange={(e) => {
+                                        setSelectedFacultyName(e.target.value);
+                                        setValidationErrors(prev => ({...prev, facultyName: ''}));
+                                    }}
                                     required
                                 >
                                     <option value="" disabled>Select Faculty</option>
@@ -432,6 +522,9 @@ const Department = () => {
                                         </option>
                                     ))}
                                 </select>
+                                {validationErrors.facultyName && (
+                                    <p className="text-red-500 text-xs mt-1">{validationErrors.facultyName}</p>
+                                )}
                             </div>
 
                             <div className="flex justify-end space-x-4">
