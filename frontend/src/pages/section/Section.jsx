@@ -4,7 +4,8 @@ import Layout from "../../Layout/DashboardLayout";
 import useAuth from "../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import SectionTable from "./SectionTable"; // Import the SectionTable component
+import SectionTable from "./SectionTable";
+import { PlusIcon, XMarkIcon } from "@heroicons/react/24/solid";
 
 const Section = () => {
     const [sections, setSections] = useState([]);
@@ -31,7 +32,7 @@ const Section = () => {
                 setIsLoading(false);
             })
             .catch((error) => {
-                console.error(`Error: ${error}`);
+                console.error(`Error fetching sections: ${error}`);
                 toast.error("Failed to fetch sections");
                 setIsLoading(false);
             });
@@ -40,7 +41,7 @@ const Section = () => {
     // Fetch courses without sections
     const fetchCourses = () => {
         axios
-            .get("http://localhost:8080/api/courses/no-section", {
+            .get("http://localhost:8080/api/courses", {
                 headers: {
                     Authorization: `Bearer ${auth.accessToken}`,
                 },
@@ -53,7 +54,7 @@ const Section = () => {
                 }
             })
             .catch((error) => {
-                console.error(`Error: ${error}`);
+                console.error(`Error fetching courses: ${error}`);
                 toast.error("Failed to fetch courses");
             });
     };
@@ -90,7 +91,7 @@ const Section = () => {
                 setSelectedCourseName("");
             })
             .catch((error) => {
-                console.error(`Error: ${error}`);
+                console.error(`Error adding section: ${error}`);
                 toast.error("Failed to add section");
                 setIsLoading(false);
             });
@@ -103,104 +104,118 @@ const Section = () => {
 
     return (
         <Layout>
-            <main className="bg-gray-50 min-h-screen p-6">
-                <div className="max-w-7xl mx-auto">
-                    <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-                        <div className="flex justify-between items-center mb-6">
-                            <h1 className="text-3xl font-bold text-gray-800">Sections Management</h1>
-                            <button
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 flex items-center"
-                                onClick={() => setIsModalOpen(true)}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Add New Section
-                            </button>
+            <div className="container mx-auto px-4 sm:px-8 py-8">
+                <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                            <span className="mr-3">Sections Management</span>
+                            {isLoading && (
+                                <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                            )}
+                        </h2>
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105"
+                        >
+                            <PlusIcon className="h-5 w-5 mr-2" />
+                            Add New Section
+                        </button>
+                    </div>
+
+                    <div className="p-6">
+                        <div className="text-sm text-gray-600 mb-4 bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+                            <span className="font-semibold">Tip:</span> Sections allow you to organize your courses into different class groups.
                         </div>
 
-                        <div className="bg-blue-50 p-4 rounded-md mb-6 border-l-4 border-blue-500">
-                            <p className="text-blue-700">
-                                <span className="font-semibold">Tip:</span> Sections allow you to organize your courses into different class groups.
-                            </p>
-                        </div>
-
-                        {isLoading ? (
-                            <div className="flex justify-center items-center h-64">
-                                <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-16 w-16 mb-4"></div>
-                            </div>
-                        ) : (
-                            <SectionTable sections={sections} onSectionUpdated={fetchSections} />
-                        )}
+                        {/* Sections Table */}
+                        <SectionTable
+                            sections={sections}
+                            onSectionUpdated={fetchSections}
+                        />
                     </div>
                 </div>
 
                 {/* Add Section Modal */}
                 {isModalOpen && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-lg p-8 w-full max-w-md">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-gray-800">Add New Section</h2>
-                                <button onClick={() => setIsModalOpen(false)} className="text-gray-500 hover:text-gray-700">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <form onSubmit={(e) => { e.preventDefault(); addSection(); }}>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="numberOfClasses">
-                                        Number of Classes
-                                    </label>
-                                    <input
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                        id="numberOfClasses"
-                                        type="number"
-                                        min={1}
-                                        value={numberOfClasses}
-                                        onChange={(e) => setNumberOfClasses(e.target.value)}
-                                        placeholder="Enter number of classes"
-                                    />
-                                </div>
-                                <div className="mb-6">
-                                    <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="courseName">
-                                        Course
-                                    </label>
-                                    <select
-                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                        id="courseName"
-                                        value={selectedCourseName}
-                                        onChange={(e) => setSelectedCourseName(e.target.value)}
-                                    >
-                                        <option value="">-- Select Course --</option>
-                                        {courses.map((course) => (
-                                            <option key={course.id} value={course.courseName}>
-                                                {course.courseName}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex justify-end">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
+                        <div className="relative w-full max-w-md mx-auto my-6">
+                            <div className="relative flex flex-col w-full bg-white border-0 rounded-lg shadow-lg outline-none focus:outline-none">
+                                <div className="flex items-start justify-between p-5 border-b border-solid rounded-t border-blueGray-200">
+                                    <h3 className="text-xl font-semibold text-gray-800">
+                                        Add New Section
+                                    </h3>
                                     <button
-                                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded mr-2"
-                                        type="button"
+                                        className="float-right p-1 ml-auto bg-transparent border-0 text-gray-500 opacity-75 hover:opacity-100"
                                         onClick={() => setIsModalOpen(false)}
                                     >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
-                                        type="submit"
-                                    >
-                                        Add Section
+                                        <XMarkIcon className="h-6 w-6" />
                                     </button>
                                 </div>
-                            </form>
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        addSection();
+                                    }}
+                                    className="relative flex-auto p-6"
+                                >
+                                    <div className="mb-4">
+                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                            Number of Classes
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={numberOfClasses}
+                                            onChange={(e) => setNumberOfClasses(e.target.value)}
+                                            className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 transition duration-300"
+                                            placeholder="Enter number of classes"
+                                            required
+                                            min="1"
+                                        />
+                                    </div>
+                                    <div className="mb-6">
+                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                            Course
+                                        </label>
+                                        <select
+                                            value={selectedCourseName}
+                                            onChange={(e) => setSelectedCourseName(e.target.value)}
+                                            className="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none focus:border-blue-500 transition duration-300"
+                                            required
+                                        >
+                                            <option value="">-- Select Course --</option>
+                                            {courses.map((course) => (
+                                                <option key={course.id} value={course.courseName}>
+                                                    {course.courseName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex justify-end space-x-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsModalOpen(false)}
+                                            className="px-4 py-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 transition duration-300"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 transition duration-300"
+                                        >
+                                            Add Section
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 )}
-            </main>
+
+                {/* Semi-transparent overlay */}
+                {isModalOpen && (
+                    <div className="fixed inset-0 z-40 bg-black opacity-25"></div>
+                )}
+            </div>
         </Layout>
     );
 };

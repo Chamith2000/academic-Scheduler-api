@@ -6,6 +6,8 @@ import { BiTimeFive, BiTrash, BiEdit, BiPlus, BiUser, BiBuilding, BiX } from "re
 import { FaChalkboardTeacher, FaCalendarAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Instructor = () => {
     const [instructors, setInstructors] = useState([]);
@@ -29,6 +31,15 @@ const Instructor = () => {
     const { auth } = useAuth();
     const navigate = useNavigate();
 
+    // Form validation errors
+    const [formErrors, setFormErrors] = useState({
+        firstName: "",
+        lastName: "",
+        department: "",
+        instructorSelect: "",
+        timeslotSelect: ""
+    });
+
     // Pagination for the table
     const [currentPage, setCurrentPage] = useState(1);
     const [recordsPerPage] = useState(10);
@@ -38,6 +49,87 @@ const Instructor = () => {
     const totalPages = Math.ceil(instructors.length / recordsPerPage);
     const isFirstPage = currentPage === 1;
     const isLastPage = currentPage === totalPages;
+
+    // Real-time validation functions
+    const validateFirstName = (value) => {
+        if (!value.trim()) return "First Name is required";
+        if (value.trim().length < 2) return "First Name must be at least 2 characters long";
+        if (!/^[A-Za-z\s'-]+$/.test(value.trim())) return "First Name can only contain letters, spaces, hyphens, and apostrophes";
+        return "";
+    };
+
+    const validateLastName = (value) => {
+        if (!value.trim()) return "Last Name is required";
+        if (value.trim().length < 2) return "Last Name must be at least 2 characters long";
+        if (!/^[A-Za-z\s'-]+$/.test(value.trim())) return "Last Name can only contain letters, spaces, hyphens, and apostrophes";
+        return "";
+    };
+
+    const validateDepartment = (value) => {
+        if (!value) return "Department is required";
+        return "";
+    };
+
+    const validateInstructorSelect = (value) => {
+        if (!value) return "Please select an instructor";
+        return "";
+    };
+
+    const validateTimeslotSelect = (value) => {
+        if (!value) return "Please select a time slot";
+        return "";
+    };
+
+    // Real-time validation handlers
+    const handleFirstNameChange = (e) => {
+        const value = e.target.value;
+        setFirstName(value);
+        setFormErrors(prev => ({ ...prev, firstName: validateFirstName(value) }));
+    };
+
+    const handleLastNameChange = (e) => {
+        const value = e.target.value;
+        setLastName(value);
+        setFormErrors(prev => ({ ...prev, lastName: validateLastName(value) }));
+    };
+
+    const handleDeptChange = (e) => {
+        const value = e.target.value;
+        setSelectedDeptName(value);
+        setFormErrors(prev => ({ ...prev, department: validateDepartment(value) }));
+    };
+
+    const handleInstructorSelectChange = (e) => {
+        const value = e.target.value;
+        setSelectedInstructor(value);
+        setFormErrors(prev => ({ ...prev, instructorSelect: validateInstructorSelect(value) }));
+    };
+
+    const handleTimeslotSelectChange = (e) => {
+        const value = e.target.value;
+        setSelectedTimeslot(value);
+        setFormErrors(prev => ({ ...prev, timeslotSelect: validateTimeslotSelect(value) }));
+    };
+
+    // Form submission validation
+    const validateInstructorForm = () => {
+        const errors = {
+            firstName: validateFirstName(firstName),
+            lastName: validateLastName(lastName),
+            department: validateDepartment(selectedDeptName)
+        };
+        setFormErrors(prev => ({ ...prev, ...errors }));
+        return Object.values(errors).every(error => !error);
+    };
+
+    const validatePreferenceForm = () => {
+        const errors = {
+            instructorSelect: validateInstructorSelect(selectedInstructor),
+            timeslotSelect: validateTimeslotSelect(selectedTimeslot)
+        };
+        setFormErrors(prev => ({ ...prev, ...errors }));
+        return Object.values(errors).every(error => !error);
+    };
 
     function handleNextPage() {
         if (!isLastPage) {
@@ -51,7 +143,6 @@ const Instructor = () => {
         }
     }
 
-    // Fetch all instructors
     const fetchInstructors = async () => {
         setIsLoading(true);
         try {
@@ -63,12 +154,12 @@ const Instructor = () => {
             setInstructors(response.data);
         } catch (error) {
             console.error(`Error fetching instructors: ${error}`);
+            toast.error("Failed to fetch instructors");
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Fetch all timeslots
     const fetchTimeSlots = async () => {
         try {
             const response = await axios.get("http://localhost:8080/api/timeslots", {
@@ -79,10 +170,10 @@ const Instructor = () => {
             setTimeslots(response.data);
         } catch (error) {
             console.error(`Error fetching timeslots: ${error}`);
+            toast.error("Failed to fetch timeslots");
         }
     };
 
-    // Fetch all preferences
     const fetchAllPreferences = async () => {
         try {
             const response = await axios.get("http://localhost:8080/api/instructors/preferences", {
@@ -93,10 +184,10 @@ const Instructor = () => {
             setAllPreferences(response.data);
         } catch (error) {
             console.error(`Error fetching preferences: ${error}`);
+            toast.error("Failed to fetch preferences");
         }
     };
 
-    // Fetch all departments
     const fetchDepartments = async () => {
         try {
             const response = await axios.get("http://localhost:8080/api/departments", {
@@ -110,18 +201,23 @@ const Instructor = () => {
             }
         } catch (error) {
             console.error(`Error fetching departments: ${error}`);
+            toast.error("Failed to fetch departments");
         }
     };
 
-    // Add a new instructor
     const addInstructor = async () => {
+        if (!validateInstructorForm()) {
+            toast.error("Please fix all validation errors before submitting.");
+            return;
+        }
+
         let newDeptName = selectedDeptName;
         if (selectedDeptName === "") {
             newDeptName = departments.length > 0 ? departments[0].deptName : "";
         }
         const newInstructor = {
-            firstName: firstName,
-            lastName: lastName,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             deptName: newDeptName,
         };
         try {
@@ -134,19 +230,25 @@ const Instructor = () => {
             await fetchAllPreferences();
             setShowAddModal(false);
             resetForm();
+            toast.success("Instructor added successfully!");
         } catch (error) {
             console.error(`Error adding instructor: ${error}`);
+            toast.error(error.response?.data?.message || "Failed to add instructor");
         }
     };
 
-    // Edit an existing instructor
     const editInstructor = async () => {
+        if (!validateInstructorForm()) {
+            toast.error("Please fix all validation errors before submitting.");
+            return;
+        }
+
         if (!instructorToEdit) return;
 
         const updatedInstructor = {
             id: instructorToEdit.id,
-            firstName: firstName,
-            lastName: lastName,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             deptName: selectedDeptName,
         };
 
@@ -161,8 +263,10 @@ const Instructor = () => {
             setShowEditModal(false);
             setInstructorToEdit(null);
             resetForm();
+            toast.success("Instructor updated successfully!");
         } catch (error) {
             console.error(`Error updating instructor: ${error}`);
+            toast.error(error.response?.data?.message || "Failed to update instructor");
         }
     };
 
@@ -170,6 +274,15 @@ const Instructor = () => {
         setFirstName("");
         setLastName("");
         setSelectedDeptName(departments.length > 0 ? departments[0].deptName : "");
+        setSelectedInstructor("");
+        setSelectedTimeslot("");
+        setFormErrors({
+            firstName: "",
+            lastName: "",
+            department: "",
+            instructorSelect: "",
+            timeslotSelect: ""
+        });
     };
 
     useEffect(() => {
@@ -187,10 +300,16 @@ const Instructor = () => {
             setFirstName(instructorToEdit.firstName);
             setLastName(instructorToEdit.lastName);
             setSelectedDeptName(instructorToEdit.deptName);
+            setFormErrors({
+                firstName: validateFirstName(instructorToEdit.firstName),
+                lastName: validateLastName(instructorToEdit.lastName),
+                department: validateDepartment(instructorToEdit.deptName),
+                instructorSelect: "",
+                timeslotSelect: ""
+            });
         }
     }, [instructorToEdit]);
 
-    // Delete an instructor
     const handleDelete = async (id) => {
         try {
             await axios.delete(`http://localhost:8080/api/instructors/${id}`, {
@@ -202,12 +321,13 @@ const Instructor = () => {
             await fetchAllPreferences();
             setShowDeleteModal(false);
             setInstructorToDelete(null);
+            toast.success("Instructor deleted successfully!");
         } catch (error) {
             console.error(`Error deleting instructor: ${error}`);
+            toast.error("Error deleting instructor. Please try again.");
         }
     };
 
-    // Handle removing a preference
     const handleRemovePreference = async () => {
         if (!preferenceToRemove) return;
         const { instructorId, preferenceId } = preferenceToRemove;
@@ -217,8 +337,8 @@ const Instructor = () => {
                 `http://localhost:8080/api/instructors/${instructorId}/preferences/${preferenceId}`,
                 {
                     headers: {
-                        Authorization: `Bearer ${auth.accessToken}`
-                    }
+                        Authorization: `Bearer ${auth.accessToken}`,
+                    },
                 }
             );
 
@@ -226,17 +346,23 @@ const Instructor = () => {
                 await Promise.all([fetchAllPreferences(), fetchInstructors()]);
                 setShowRemovePreferenceModal(false);
                 setPreferenceToRemove(null);
+                toast.success("Preference removed successfully!");
             } else {
                 console.error("Unexpected status:", response.status);
-                alert("Failed to remove preference");
+                toast.error("Failed to remove preference");
             }
         } catch (error) {
             console.error("Error removing preference:", error.response?.data || error.message);
-            alert("Error: " + (error.response?.data?.message || error.message));
+            toast.error("Error: " + (error.response?.data?.message || error.message));
         }
     };
-    // Add a preference
+
     const handleAddPreference = async () => {
+        if (!validatePreferenceForm()) {
+            toast.error("Please fix all validation errors before submitting.");
+            return;
+        }
+
         const instructorId = selectedInstructor;
         const timeslotObj = JSON.parse(selectedTimeslot);
         const preferenceId = timeslotObj.id;
@@ -262,15 +388,18 @@ const Instructor = () => {
                 setShowPreferenceModal(false);
                 setSelectedInstructor("");
                 setSelectedTimeslot("");
+                toast.success("Preference added successfully!");
             } else {
-                console.error("Failed to add preference");
+                const errorData = await response.json();
+                console.error("Failed to add preference", errorData);
+                toast.error(errorData.message || "Failed to add preference");
             }
         } catch (error) {
             console.error(`Error adding preference: ${error}`);
+            toast.error("Error adding preference");
         }
     };
 
-    // Get instructor preferences
     const getInstructorPreferences = (instructorId) => {
         const instructorIdStr = String(instructorId);
         const instructorPrefs = allPreferences.find(
@@ -279,7 +408,6 @@ const Instructor = () => {
         return instructorPrefs ? instructorPrefs.preferences : [];
     };
 
-    // Group preferences by day
     const groupPreferencesByDay = (preferences) => {
         const grouped = {};
         preferences.forEach((pref) => {
@@ -291,14 +419,12 @@ const Instructor = () => {
         return grouped;
     };
 
-    // Get instructor full name by ID
     const getInstructorName = (instructorId) => {
         const idStr = String(instructorId);
         const instructor = instructors.find((inst) => String(inst.id) === idStr);
         return instructor ? `${instructor.firstName} ${instructor.lastName}` : idStr;
     };
 
-    // Determine time slot background color
     const getTimeSlotColor = (day) => {
         const colors = {
             Monday: "bg-blue-50 border-blue-200 text-blue-700",
@@ -312,9 +438,295 @@ const Instructor = () => {
         return colors[day] || "bg-gray-50 border-gray-200 text-gray-700";
     };
 
+    const renderAddInstructorModal = () => {
+        return (
+            showAddModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Add New Instructor</h2>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                addInstructor();
+                            }}
+                        >
+                            <div className="mb-4">
+                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                                    First Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="firstName"
+                                    value={firstName}
+                                    onChange={handleFirstNameChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.firstName
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.firstName && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>
+                                )}
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Last Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="lastName"
+                                    value={lastName}
+                                    onChange={handleLastNameChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.lastName
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.lastName && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
+                                )}
+                            </div>
+                            <div className="mb-6">
+                                <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Department
+                                </label>
+                                <select
+                                    id="department"
+                                    value={selectedDeptName}
+                                    onChange={handleDeptChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.department
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                >
+                                    {departments.map((department) => (
+                                        <option key={department.id} value={department.deptName}>
+                                            {department.deptName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {formErrors.department && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.department}</p>
+                                )}
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddModal(false)}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    Add Instructor
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )
+        );
+    };
+
+    const renderEditInstructorModal = () => {
+        return (
+            showEditModal && instructorToEdit && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Edit Instructor</h2>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                editInstructor();
+                            }}
+                        >
+                            <div className="mb-4">
+                                <label htmlFor="editFirstName" className="block text-sm font-medium text-gray-700 mb-1">
+                                    First Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="editFirstName"
+                                    value={firstName}
+                                    onChange={handleFirstNameChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.firstName
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.firstName && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>
+                                )}
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="editLastName" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Last Name
+                                </label>
+                                <input
+                                    type="text"
+                                    id="editLastName"
+                                    value={lastName}
+                                    onChange={handleLastNameChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.lastName
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.lastName && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
+                                )}
+                            </div>
+                            <div className="mb-6">
+                                <label htmlFor="editDepartment" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Department
+                                </label>
+                                <select
+                                    id="editDepartment"
+                                    value={selectedDeptName}
+                                    onChange={handleDeptChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.department
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                >
+                                    {departments.map((department) => (
+                                        <option key={department.id} value={department.deptName}>
+                                            {department.deptName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {formErrors.department && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.department}</p>
+                                )}
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowEditModal(false);
+                                        setInstructorToEdit(null);
+                                        resetForm();
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )
+        );
+    };
+
+    const renderAddPreferenceModal = () => {
+        return (
+            showPreferenceModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Add Time Preference</h2>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                handleAddPreference();
+                            }}
+                        >
+                            <div className="mb-4">
+                                <label htmlFor="instructorSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Select Instructor
+                                </label>
+                                <select
+                                    id="instructorSelect"
+                                    value={selectedInstructor}
+                                    onChange={handleInstructorSelectChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.instructorSelect
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                >
+                                    <option value="">Select an instructor</option>
+                                    {instructors.map((instructor) => (
+                                        <option key={instructor.id} value={instructor.id}>
+                                            {instructor.firstName} {instructor.lastName} - {instructor.deptName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {formErrors.instructorSelect && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.instructorSelect}</p>
+                                )}
+                            </div>
+                            <div className="mb-6">
+                                <label htmlFor="timeslotSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Select Time Slot
+                                </label>
+                                <select
+                                    id="timeslotSelect"
+                                    value={selectedTimeslot}
+                                    onChange={handleTimeslotSelectChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.timeslotSelect
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                >
+                                    <option value="">Select a time slot</option>
+                                    {timeslots.map((timeslot) => (
+                                        <option key={timeslot.id} value={JSON.stringify(timeslot)}>
+                                            {timeslot.day} ({timeslot.startTime} - {timeslot.endTime})
+                                        </option>
+                                    ))}
+                                </select>
+                                {formErrors.timeslotSelect && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.timeslotSelect}</p>
+                                )}
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPreferenceModal(false);
+                                        setSelectedInstructor("");
+                                        setSelectedTimeslot("");
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    disabled={!selectedInstructor || !selectedTimeslot}
+                                >
+                                    Add Preference
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )
+        );
+    };
+
     return (
         <DashboardLayout>
             <div className="instructor-container p-6 bg-gray-50 min-h-screen">
+                <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-gray-800">Instructors Management</h1>
                     <div className="flex space-x-3">
@@ -370,7 +782,6 @@ const Instructor = () => {
                     </div>
                 </div>
 
-                {/* Instructor Preferences Section */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
                     <div className="p-6 border-b border-gray-200">
                         <h2 className="text-xl font-semibold text-gray-800 flex items-center">
@@ -419,7 +830,7 @@ const Instructor = () => {
                                                                                         `${inst.firstName} ${inst.lastName}` === getInstructorName(instructor.instructorName)
                                                                                     )?.id;
                                                                                     setPreferenceToRemove({
-                                                                                        instructorId: instructorId,  // Now using actual ID
+                                                                                        instructorId: instructorId,
                                                                                         preferenceId: pref.id,
                                                                                         day: pref.day,
                                                                                         time: `${pref.startTime} - ${pref.endTime}`,
@@ -466,7 +877,6 @@ const Instructor = () => {
                     )}
                 </div>
 
-                {/* Existing Instructors Table */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                         <h2 className="text-xl font-semibold text-gray-800">Existing Instructors</h2>
@@ -486,34 +896,19 @@ const Instructor = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                     <tr>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                        >
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             First Name
                                         </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                        >
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Last Name
                                         </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                        >
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Department
                                         </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                        >
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Preferences
                                         </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                        >
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Actions
                                         </th>
                                     </tr>
@@ -534,8 +929,8 @@ const Instructor = () => {
                                                             {preferences && preferences.length > 0 ? (
                                                                 preferences.map((pref) => (
                                                                     <span key={pref.id} className={`px-2 py-1 rounded-full text-xs ${getTimeSlotColor(pref.day)}`}>
-                                      {pref.day} {pref.startTime}-{pref.endTime}
-                                    </span>
+                                                                        {pref.day} {pref.startTime}-{pref.endTime}
+                                                                    </span>
                                                                 ))
                                                             ) : (
                                                                 <span className="text-gray-400 italic">No preferences</span>
@@ -609,153 +1004,10 @@ const Instructor = () => {
                 </div>
             </div>
 
-            {/* Add Instructor Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Add New Instructor</h2>
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                addInstructor();
-                            }}
-                        >
-                            <div className="mb-4">
-                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                                    First Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="firstName"
-                                    value={firstName}
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Last Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="lastName"
-                                    value={lastName}
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                />
-                            </div>
-                            <div className="mb-6">
-                                <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Department
-                                </label>
-                                <select
-                                    id="department"
-                                    value={selectedDeptName}
-                                    onChange={(e) => setSelectedDeptName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    {departments.map((department) => (
-                                        <option key={department.id} value={department.deptName}>
-                                            {department.deptName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAddModal(false)}
-                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                                    Add Instructor
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            {renderAddInstructorModal()}
+            {renderEditInstructorModal()}
+            {renderAddPreferenceModal()}
 
-            {/* Edit Instructor Modal */}
-            {showEditModal && instructorToEdit && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Edit Instructor</h2>
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                editInstructor();
-                            }}
-                        >
-                            <div className="mb-4">
-                                <label htmlFor="editFirstName" className="block text-sm font-medium text-gray-700 mb-1">
-                                    First Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="editFirstName"
-                                    value={firstName}
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                />
-                            </div>
-                            <div className="mb-4">
-                                <label htmlFor="editLastName" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Last Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="editLastName"
-                                    value={lastName}
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                />
-                            </div>
-                            <div className="mb-6">
-                                <label htmlFor="editDepartment" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Department
-                                </label>
-                                <select
-                                    id="editDepartment"
-                                    value={selectedDeptName}
-                                    onChange={(e) => setSelectedDeptName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    {departments.map((department) => (
-                                        <option key={department.id} value={department.deptName}>
-                                            {department.deptName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowEditModal(false);
-                                        setInstructorToEdit(null);
-                                        resetForm();
-                                    }}
-                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                                    Save Changes
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Delete Instructor Confirmation Modal */}
             {showDeleteModal && instructorToDelete && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
@@ -764,8 +1016,8 @@ const Instructor = () => {
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 text-center mb-2">Delete Instructor</h3>
                         <p className="text-sm text-gray-600 text-center mb-6">
-                            Are you sure you want to delete {instructorToDelete.firstName} {instructorToDelete.lastName}? This action cannot
-                            be undone.
+                            Warning: This will remove the instructor and set their courses to have no instructor.
+                            Are you sure you want to delete {instructorToDelete.firstName} {instructorToDelete.lastName}?
                         </p>
                         <div className="flex justify-center space-x-3">
                             <button
@@ -781,14 +1033,13 @@ const Instructor = () => {
                                 onClick={() => handleDelete(instructorToDelete.id)}
                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                             >
-                                Delete
+                                Delete Instructor
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Remove Preference Confirmation Modal */}
             {showRemovePreferenceModal && preferenceToRemove && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
@@ -817,80 +1068,6 @@ const Instructor = () => {
                                 Remove
                             </button>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Preference Modal */}
-            {showPreferenceModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Add Time Preference</h2>
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                handleAddPreference();
-                            }}
-                        >
-                            <div className="mb-4">
-                                <label htmlFor="instructorSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Select Instructor
-                                </label>
-                                <select
-                                    id="instructorSelect"
-                                    value={selectedInstructor}
-                                    onChange={(e) => setSelectedInstructor(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                >
-                                    <option value="">Select an instructor</option>
-                                    {instructors.map((instructor) => (
-                                        <option key={instructor.id} value={instructor.id}>
-                                            {instructor.firstName} {instructor.lastName} - {instructor.deptName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="mb-6">
-                                <label htmlFor="timeslotSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Select Time Slot
-                                </label>
-                                <select
-                                    id="timeslotSelect"
-                                    value={selectedTimeslot}
-                                    onChange={(e) => setSelectedTimeslot(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                >
-                                    <option value="">Select a time slot</option>
-                                    {timeslots.map((timeslot) => (
-                                        <option key={timeslot.id} value={JSON.stringify(timeslot)}>
-                                            {timeslot.day} ({timeslot.startTime} - {timeslot.endTime})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowPreferenceModal(false);
-                                        setSelectedInstructor("");
-                                        setSelectedTimeslot("");
-                                    }}
-                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                    disabled={!selectedInstructor || !selectedTimeslot}
-                                >
-                                    Add Preference
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             )}

@@ -13,10 +13,61 @@ const TimeSlot = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
 
+    // Validation state
+    const [validations, setValidations] = useState({
+        day: { isValid: true, message: '' },
+        startTime: { isValid: true, message: '' },
+        endTime: { isValid: true, message: '' }
+    });
+
     const { auth } = useAuth();
 
     // Days of the week for dropdown
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    // Validation functions
+    const validateDay = (value) => {
+        if (!value) {
+            return { isValid: false, message: 'Please select a day' };
+        }
+        return { isValid: true, message: '' };
+    };
+
+    const validateTime = (startTime, endTime) => {
+        // Check if both start and end times are provided
+        if (!startTime || !endTime) {
+            return {
+                startTime: {
+                    isValid: !!startTime,
+                    message: !startTime ? 'Start time is required' : ''
+                },
+                endTime: {
+                    isValid: !!endTime,
+                    message: !endTime ? 'End time is required' : ''
+                }
+            };
+        }
+
+        // Convert times to minutes for comparison
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+
+        const startTimeInMinutes = startHours * 60 + startMinutes;
+        const endTimeInMinutes = endHours * 60 + endMinutes;
+
+        // Validate that end time is after start time
+        if (endTimeInMinutes <= startTimeInMinutes) {
+            return {
+                startTime: { isValid: false, message: 'Start time must be before end time' },
+                endTime: { isValid: false, message: 'End time must be after start time' }
+            };
+        }
+
+        return {
+            startTime: { isValid: true, message: '' },
+            endTime: { isValid: true, message: '' }
+        };
+    };
 
     // Fetch all time slots
     const fetchTimeSlots = () => {
@@ -40,11 +91,43 @@ const TimeSlot = () => {
             });
     };
 
-    // Add a new time slot
+    // Modify addTimeSlot to include validation
     const addTimeSlot = (e) => {
         e.preventDefault();
-        if (!day || !startTime || !endTime) {
-            setError('Please fill in all fields');
+
+        // Validate day
+        const dayValidation = validateDay(day);
+
+        // Validate times
+        const timeValidations = validateTime(startTime, endTime);
+
+        // Update validations state
+        setValidations({
+            day: dayValidation,
+            startTime: timeValidations.startTime,
+            endTime: timeValidations.endTime
+        });
+
+        // Check if all validations pass
+        if (!dayValidation.isValid ||
+            !timeValidations.startTime.isValid ||
+            !timeValidations.endTime.isValid) {
+            return;
+        }
+
+        // Check for existing time slot conflicts
+        const hasConflict = timeSlots.some(slot =>
+            slot.day === day &&
+            isTimeOverlapping(slot.startTime, slot.endTime, startTime, endTime)
+        );
+
+        if (hasConflict) {
+            setError('A time slot already exists for this day and time');
+            setValidations(prev => ({
+                ...prev,
+                startTime: { isValid: false, message: 'Conflicting time slot' },
+                endTime: { isValid: false, message: 'Conflicting time slot' }
+            }));
             return;
         }
 
@@ -70,6 +153,12 @@ const TimeSlot = () => {
                 setDay('');
                 setStartTime('');
                 setEndTime('');
+                // Reset validations
+                setValidations({
+                    day: { isValid: true, message: '' },
+                    startTime: { isValid: true, message: '' },
+                    endTime: { isValid: true, message: '' }
+                });
                 fetchTimeSlots();
                 setIsLoading(false);
                 setTimeout(() => setSuccess(false), 3000);
@@ -103,180 +192,28 @@ const TimeSlot = () => {
         }
     };
 
+    // Helper function to check time overlapping
+    const isTimeOverlapping = (existingStart, existingEnd, newStart, newEnd) => {
+        const [existStartHours, existStartMins] = existingStart.split(':').map(Number);
+        const [existEndHours, existEndMins] = existingEnd.split(':').map(Number);
+        const [newStartHours, newStartMins] = newStart.split(':').map(Number);
+        const [newEndHours, newEndMins] = newEnd.split(':').map(Number);
+
+        const existStartMinutes = existStartHours * 60 + existStartMins;
+        const existEndMinutes = existEndHours * 60 + existEndMins;
+        const newStartMinutes = newStartHours * 60 + newStartMins;
+        const newEndMinutes = newEndHours * 60 + newEndMins;
+
+        return (
+            (newStartMinutes >= existStartMinutes && newStartMinutes < existEndMinutes) ||
+            (newEndMinutes > existStartMinutes && newEndMinutes <= existEndMinutes) ||
+            (newStartMinutes <= existStartMinutes && newEndMinutes >= existEndMinutes)
+        );
+    };
+
     useEffect(() => {
         fetchTimeSlots();
     }, []);
-
-    // Styles (unchanged from original, but wrapped in DashboardLayout)
-    const styles = {
-        pageContainer: {
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: '100vh',
-            paddingTop: '40px',
-            paddingBottom: '40px',
-        },
-        container: {
-            margin: '0 auto',
-            maxWidth: '1140px',
-            width: '100%',
-        },
-        heading: {
-            color: '#2c3e50',
-            fontWeight: 700,
-            textAlign: 'center',
-            marginBottom: '2rem',
-        },
-        row: {
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            margin: '0 -15px',
-        },
-        column: {
-            flex: '0 0 100%',
-            maxWidth: '100%',
-            padding: '0 15px',
-            marginBottom: '30px',
-            display: 'flex',
-        },
-        columnMd6: {
-            flex: '0 0 100%',
-            maxWidth: '100%',
-            padding: '0 15px',
-            marginBottom: '30px',
-            display: 'flex',
-        },
-        card: {
-            borderRadius: '10px',
-            overflow: 'hidden',
-            border: 'none',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            transition: 'transform 0.3s',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-        },
-        cardHeader: {
-            padding: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        cardTitle: {
-            margin: 0,
-            fontSize: '1.5rem',
-            fontWeight: 600,
-        },
-        cardBody: {
-            padding: '20px',
-            flex: '1 1 auto',
-        },
-        formGroup: {
-            marginBottom: '20px',
-        },
-        formLabel: {
-            fontWeight: 600,
-            marginBottom: '8px',
-            display: 'block',
-        },
-        formControl: {
-            borderRadius: '8px',
-            padding: '12px 15px',
-            border: '1px solid #d1d9e6',
-            width: '100%',
-            fontSize: '1rem',
-        },
-        formRow: {
-            display: 'flex',
-            flexWrap: 'wrap',
-            margin: '0 -10px',
-        },
-        formCol: {
-            flex: '0 0 100%',
-            maxWidth: '100%',
-            padding: '0 10px',
-        },
-        button: {
-            borderRadius: '8px',
-            padding: '12px 20px',
-            fontWeight: 600,
-            marginTop: '1rem',
-            width: '100%',
-            transition: 'all 0.3s',
-            cursor: 'pointer',
-            textAlign: 'center',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-        },
-        tableContainer: {
-            overflowX: 'auto',
-            width: '100%',
-        },
-        table: {
-            width: '100%',
-            borderCollapse: 'collapse',
-        },
-        tableHeader: {
-            fontWeight: 600,
-            backgroundColor: '#f8f9fc',
-            borderTop: 'none',
-            padding: '15px',
-            textAlign: 'left',
-        },
-        tableCell: {
-            verticalAlign: 'middle',
-            padding: '15px',
-            borderTop: '1px solid #e3e6f0',
-        },
-        dayBadge: {
-            padding: '8px 12px',
-            fontWeight: 600,
-            borderRadius: '6px',
-            display: 'inline-block',
-        },
-        actionButton: {
-            borderRadius: '6px',
-            padding: '8px 12px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            border: '1px solid #dc3545',
-            color: '#dc3545',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            transition: 'all 0.3s',
-        },
-        loadingSpinner: {
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '50px 0',
-            width: '100%',
-        },
-        emptyMessage: {
-            textAlign: 'center',
-            padding: '50px 0',
-            color: '#6c757d',
-            width: '100%',
-        },
-        errorMessage: {
-            padding: '12px 15px',
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            borderRadius: '5px',
-            marginBottom: '20px',
-        },
-        successMessage: {
-            padding: '12px 15px',
-            backgroundColor: '#d4edda',
-            color: '#155724',
-            borderRadius: '5px',
-            marginBottom: '20px',
-        },
-    };
 
     // Media query handling for responsive design
     useEffect(() => {
@@ -346,6 +283,146 @@ const TimeSlot = () => {
         return ['warning'].includes(variant) ? '#212529' : '#fff';
     };
 
+    // Updated styles with a more modern and clean design
+    const styles = {
+        pageContainer: {
+            backgroundColor: '#f8f9fc',
+            minHeight: '100vh',
+            padding: '20px',
+            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+        },
+        container: {
+            maxWidth: '1200px',
+            margin: '0 auto',
+            padding: '0 15px'
+        },
+        row: {
+            display: 'flex',
+            flexWrap: 'wrap',
+            marginRight: '-15px',
+            marginLeft: '-15px'
+        },
+        columnMd6: {
+            flex: '0 0 50%',
+            maxWidth: '50%',
+            padding: '0 15px'
+        },
+        card: {
+            borderRadius: '12px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            border: 'none',
+            marginBottom: '20px'
+        },
+        cardHeader: {
+            padding: '15px 20px',
+            borderTopLeftRadius: '12px',
+            borderTopRightRadius: '12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+        },
+        cardTitle: {
+            margin: 0,
+            fontSize: '1.25rem',
+            fontWeight: 600
+        },
+        cardBody: {
+            padding: '20px'
+        },
+        formGroup: {
+            marginBottom: '1rem'
+        },
+        formRow: {
+            display: 'flex',
+            flexWrap: 'wrap',
+            marginRight: '-15px',
+            marginLeft: '-15px'
+        },
+        formCol: {
+            flex: '0 0 50%',
+            maxWidth: '50%',
+            padding: '0 15px'
+        },
+        formControl: {
+            borderRadius: '8px',
+            border: '1px solid #d1d3e2',
+            padding: '10px 15px',
+            fontSize: '0.875rem',
+            transition: 'border-color 0.2s ease-in-out',
+            width: '100%'
+        },
+        formLabel: {
+            marginBottom: '0.5rem',
+            fontWeight: 600,
+            color: '#6e707e'
+        },
+        button: {
+            borderRadius: '8px',
+            padding: '10px 20px',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            transition: 'all 0.2s ease-in-out',
+            width: '100%'
+        },
+        tableContainer: {
+            borderRadius: '8px',
+            overflow: 'hidden'
+        },
+        table: {
+            width: '100%',
+            borderCollapse: 'separate',
+            borderSpacing: 0
+        },
+        tableHeader: {
+            backgroundColor: '#f8f9fc',
+            color: '#6e707e',
+            padding: '12px 15px',
+            textAlign: 'left',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            borderBottom: '1px solid #e3e6f0'
+        },
+        tableCell: {
+            padding: '12px 15px',
+            borderBottom: '1px solid #e3e6f0'
+        },
+        dayBadge: {
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
+            fontWeight: 600
+        },
+        actionButton: {
+            background: 'transparent',
+            color: '#dc3545',
+            border: '1px solid #dc3545',
+            borderRadius: '6px',
+            padding: '5px 10px',
+            fontSize: '0.75rem',
+            transition: 'all 0.2s ease-in-out'
+        },
+        successMessage: {
+            backgroundColor: '#d4edda',
+            color: '#155724',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '20px'
+        },
+        errorMessage: {
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '20px'
+        },
+        loadingSpinner: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '200px'
+        }
+    };
+
     return (
         <DashboardLayout>
             <div style={styles.pageContainer}>
@@ -379,8 +456,17 @@ const TimeSlot = () => {
                                             <select
                                                 id="day"
                                                 value={day}
-                                                onChange={(e) => setDay(e.target.value)}
-                                                style={styles.formControl}
+                                                onChange={(e) => {
+                                                    setDay(e.target.value);
+                                                    setValidations(prev => ({
+                                                        ...prev,
+                                                        day: validateDay(e.target.value)
+                                                    }));
+                                                }}
+                                                style={{
+                                                    ...styles.formControl,
+                                                    borderColor: !validations.day.isValid ? '#dc3545' : undefined
+                                                }}
                                                 disabled={isLoading}
                                             >
                                                 <option value="">Select a day</option>
@@ -388,6 +474,11 @@ const TimeSlot = () => {
                                                     <option key={day} value={day}>{day}</option>
                                                 ))}
                                             </select>
+                                            {!validations.day.isValid && (
+                                                <div style={{ color: '#dc3545', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                                                    {validations.day.message}
+                                                </div>
+                                            )}
                                         </div>
                                         <div style={styles.formRow}>
                                             <div className="column-md-6" style={{ ...styles.formCol, flex: '0 0 50%', maxWidth: '50%' }}>
@@ -397,10 +488,26 @@ const TimeSlot = () => {
                                                         type="time"
                                                         id="startTime"
                                                         value={startTime}
-                                                        onChange={(e) => setStartTime(e.target.value)}
-                                                        style={styles.formControl}
+                                                        onChange={(e) => {
+                                                            setStartTime(e.target.value);
+                                                            const timeValidations = validateTime(e.target.value, endTime);
+                                                            setValidations(prev => ({
+                                                                ...prev,
+                                                                startTime: timeValidations.startTime,
+                                                                endTime: timeValidations.endTime
+                                                            }));
+                                                        }}
+                                                        style={{
+                                                            ...styles.formControl,
+                                                            borderColor: !validations.startTime.isValid ? '#dc3545' : undefined
+                                                        }}
                                                         disabled={isLoading}
                                                     />
+                                                    {!validations.startTime.isValid && (
+                                                        <div style={{ color: '#dc3545', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                                                            {validations.startTime.message}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="column-md-6" style={{ ...styles.formCol, flex: '0 0 50%', maxWidth: '50%' }}>
@@ -410,10 +517,26 @@ const TimeSlot = () => {
                                                         type="time"
                                                         id="endTime"
                                                         value={endTime}
-                                                        onChange={(e) => setEndTime(e.target.value)}
-                                                        style={styles.formControl}
+                                                        onChange={(e) => {
+                                                            setEndTime(e.target.value);
+                                                            const timeValidations = validateTime(startTime, e.target.value);
+                                                            setValidations(prev => ({
+                                                                ...prev,
+                                                                startTime: timeValidations.startTime,
+                                                                endTime: timeValidations.endTime
+                                                            }));
+                                                        }}
+                                                        style={{
+                                                            ...styles.formControl,
+                                                            borderColor: !validations.endTime.isValid ? '#dc3545' : undefined
+                                                        }}
                                                         disabled={isLoading}
                                                     />
+                                                    {!validations.endTime.isValid && (
+                                                        <div style={{ color: '#dc3545', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                                                            {validations.endTime.message}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
