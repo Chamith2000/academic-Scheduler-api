@@ -57,6 +57,7 @@ export default function EditModal({ courseId, toggleModal, fetchCourses }) {
                 setInstructors(instResponse.data);
             } catch (error) {
                 console.error("Error fetching initial data:", error);
+                alert("Failed to load course data: " + (error.response?.data?.message || error.message));
             } finally {
                 setIsLoading(false);
             }
@@ -69,6 +70,7 @@ export default function EditModal({ courseId, toggleModal, fetchCourses }) {
 
     const handleUpdate = async (e) => {
         e.preventDefault();
+
         const updatedCourse = {
             courseCode,
             courseName,
@@ -76,7 +78,7 @@ export default function EditModal({ courseId, toggleModal, fetchCourses }) {
             semester: parseInt(semester, 10),
             programmeName: selectedProgrammeName,
             deptName: selectedDeptName,
-            instructorName: selectedInstructorName,
+            instructorName: selectedInstructorName
         };
 
         try {
@@ -84,15 +86,45 @@ export default function EditModal({ courseId, toggleModal, fetchCourses }) {
             await axios.put(
                 `http://localhost:8080/api/courses/${courseId}`,
                 updatedCourse,
-                {
-                    headers: { Authorization: `Bearer ${auth.accessToken}` },
-                }
+                { headers: { Authorization: `Bearer ${auth.accessToken}` } }
             );
-            fetchCourses(); // Refresh the course list
-            toggleModal(); // Close the modal
+            fetchCourses();
+            toggleModal();
         } catch (error) {
             console.error("Error updating course:", error);
-            // You might want to add error notification here
+            alert("Failed to update course: " + (error.response?.data?.message || error.message));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm("Are you sure you want to delete this course? This action cannot be undone.")) {
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            await axios.delete(
+                `http://localhost:8080/api/courses/${courseId}`,
+                { headers: { Authorization: `Bearer ${auth.accessToken}` } }
+            );
+            fetchCourses(); // Refresh the course list
+            toggleModal();  // Close the modal
+            alert("Course deleted successfully"); // Since backend returns 204, we add our own success message
+        } catch (error) {
+            console.error("Error deleting course:", error);
+            let errorMessage = "Failed to delete course";
+            if (error.response) {
+                if (error.response.status === 404) {
+                    errorMessage = "Course not found";
+                } else if (error.response.status === 500) {
+                    errorMessage = error.response.data.message || "Server error occurred";
+                } else {
+                    errorMessage = error.response.data.message || error.message;
+                }
+            }
+            alert(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -232,8 +264,11 @@ export default function EditModal({ courseId, toggleModal, fetchCourses }) {
                                 >
                                     <option value="">Select Instructor</option>
                                     {instructors.map((instructor) => (
-                                        <option key={instructor.id} value={instructor.firstName}>
-                                            {instructor.firstName}
+                                        <option
+                                            key={instructor.id}
+                                            value={`${instructor.firstName} ${instructor.lastName}`}
+                                        >
+                                            {instructor.firstName} {instructor.lastName}
                                         </option>
                                     ))}
                                 </select>
@@ -248,6 +283,14 @@ export default function EditModal({ courseId, toggleModal, fetchCourses }) {
                                 disabled={isLoading}
                             >
                                 Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-error"
+                                onClick={handleDelete}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Deleting..." : "Delete"}
                             </button>
                             <button
                                 type="submit"
