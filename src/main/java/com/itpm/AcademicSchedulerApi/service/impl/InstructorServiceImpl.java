@@ -81,11 +81,6 @@ public class InstructorServiceImpl implements InstructorService {
         }
     }
 
-
-
-
-
-
     public void deleteInstructor(Long id) {
         instructorRepository.deleteById(id);
     }
