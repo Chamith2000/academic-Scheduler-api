@@ -12,6 +12,7 @@ public class PreferenceDto {
     private Long id;
     private String day;
     private LocalTime startTime;
+    private LocalTime endTime;
 
 
     public PreferenceDto(String day, LocalTime startTime) {

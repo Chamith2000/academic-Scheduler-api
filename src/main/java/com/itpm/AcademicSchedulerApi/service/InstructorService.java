@@ -25,4 +25,5 @@ public interface InstructorService {
     InstructorDTO updatePreference(Long instructorId, PreferenceDto preferenceDto);
 
     List<InstructorPreferencesDto> getAllInstructorPreferences();
+
 }

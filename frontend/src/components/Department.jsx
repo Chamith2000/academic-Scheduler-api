@@ -278,58 +278,64 @@ const Department = () => {
                         onClick={toggleModal}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
                     >
-                        <PlusCircle size={20} />
+                        <PlusCircle size={20}/>
                         <span>Add Department</span>
                     </button>
                 </div>
 
-                {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                        <div className="flex justify-between items-start">
+                    <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
+                        <div className="flex justify-between items-center">
                             <div>
-                                <p className="text-sm text-gray-500 mb-1">Total Departments</p>
-                                <h2 className="text-3xl font-bold text-gray-800">{departments.length}</h2>
-                            </div>
-                            <div className="bg-blue-100 p-3 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-gray-500 mb-1">Total Faculties</p>
-                                <h2 className="text-3xl font-bold text-gray-800">{faculties.length}</h2>
-                            </div>
-                            <div className="bg-green-100 p-3 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-sm text-gray-500 mb-1">Faculty Coverage</p>
-                                <h2 className="text-3xl font-bold text-gray-800">
-                                    {faculties.length > 0 ? Math.round((departments.length / faculties.length) * 10) / 10 : 0}
-                                    <span className="text-base font-normal text-gray-500 ml-1">avg</span>
-                                </h2>
+                                <h3 className="text-gray-500 text-sm font-medium">Total Departments</h3>
+                                <p className="text-3xl font-bold text-gray-800">{departments.length}</p>
                             </div>
                             <div className="bg-purple-100 p-3 rounded-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor"
+                                     viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="text-gray-500 text-sm font-medium">Total Faculties</h3>
+                                <p className="text-3xl font-bold text-gray-800">{faculties.length}</p>
+                            </div>
+                            <div className="bg-blue-100 p-3 rounded-full">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor"
+                                     viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                          d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="text-gray-500 text-sm font-medium">Faculty Coverage</h3>
+                                <p className="text-3xl font-bold text-gray-800">
+                                    {faculties.length > 0 ? Math.round((departments.length / faculties.length) * 10) / 10 : 0}
+                                    <span className="text-sm ml-1">avg</span>
+                                </p>
+                            </div>
+                            <div className="bg-green-100 p-3 rounded-full">
+                                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor"
+                                     viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
                         </div>
                     </div>
                 </div>
+
 
                 {/* Department List */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -340,7 +346,7 @@ const Department = () => {
                     <div className="p-4 border-b border-gray-200 bg-gray-50">
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search size={18} className="text-gray-400" />
+                                <Search size={18} className="text-gray-400"/>
                             </div>
                             <input
                                 type="text"
@@ -354,7 +360,8 @@ const Department = () => {
 
                     {loading ? (
                         <div className="p-8 text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                            <div
+                                className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                             <p className="mt-4 text-gray-600">Loading departments...</p>
                         </div>
                     ) : filteredDepartments.length > 0 ? (
@@ -363,7 +370,8 @@ const Department = () => {
                                 <thead className="bg-gray-50">
                                 <tr>
                                     {['Code', 'Department Name', 'Faculty', 'Actions'].map((header, i) => (
-                                        <th key={i} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th key={i}
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             {header}
                                         </th>
                                     ))}
@@ -380,21 +388,24 @@ const Department = () => {
                                                 onClick={() => handleEdit(dept)}
                                                 className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-100 rounded-full transition-colors"
                                             >
-                                                <Edit size={18} />
+                                                <Edit size={18}/>
                                             </button>
                                             <button
                                                 onClick={() => document.getElementById(`delete-modal-${dept.id}`).showModal()}
                                                 className="text-red-600 hover:text-red-900 p-2 hover:bg-red-100 rounded-full transition-colors"
                                             >
-                                                <Trash2 size={18} />
+                                                <Trash2 size={18}/>
                                             </button>
 
                                             {/* Delete confirmation modal */}
-                                            <dialog id={`delete-modal-${dept.id}`} className="modal bg-transparent p-0 rounded-lg shadow-lg backdrop:bg-gray-900 backdrop:bg-opacity-50">
+                                            <dialog id={`delete-modal-${dept.id}`}
+                                                    className="modal bg-transparent p-0 rounded-lg shadow-lg backdrop:bg-gray-900 backdrop:bg-opacity-50">
                                                 <div className="bg-white p-6 rounded-lg max-w-md w-full">
-                                                    <h3 className="text-lg font-bold text-gray-900 mb-4">Confirm Delete</h3>
+                                                    <h3 className="text-lg font-bold text-gray-900 mb-4">Confirm
+                                                        Delete</h3>
                                                     <p className="text-gray-600 mb-6">
-                                                        Are you sure you want to delete the department {dept.deptName}? This action cannot be undone.
+                                                        Are you sure you want to delete the department {dept.deptName}?
+                                                        This action cannot be undone.
                                                     </p>
                                                     <div className="flex justify-end space-x-4">
                                                         <button
@@ -423,8 +434,9 @@ const Department = () => {
                         </div>
                     ) : (
                         <div className="p-8 text-center">
-                            <div className="rounded-full bg-gray-100 p-4 w-16 h-16 mx-auto flex items-center justify-center mb-4">
-                                <AlertCircle size={24} className="text-gray-500" />
+                            <div
+                                className="rounded-full bg-gray-100 p-4 w-16 h-16 mx-auto flex items-center justify-center mb-4">
+                                <AlertCircle size={24} className="text-gray-500"/>
                             </div>
                             <h3 className="text-lg font-medium text-gray-800 mb-2">No departments found</h3>
                             <p className="text-gray-600">
