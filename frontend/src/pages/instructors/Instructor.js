@@ -2,42 +2,34 @@ import React, { useState, useEffect } from "react";
 import "./instructor.css";
 import axios from "axios";
 import DashboardLayout from "../../Layout/DashboardLayout";
-import { BiTimeFive, BiTrash, BiEdit, BiPlus, BiUser, BiBuilding, BiX } from "react-icons/bi";
-import { FaChalkboardTeacher, FaCalendarAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { BiTrash, BiEdit, BiPlus, BiBuilding, BiTimeFive, BiSearch } from "react-icons/bi";
+import { FaChalkboardTeacher } from "react-icons/fa";
 import useAuth from "../../hooks/useAuth";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const Instructor = () => {
     const [instructors, setInstructors] = useState([]);
+    const [filteredInstructors, setFilteredInstructors] = useState([]); // New state for filtered instructors
     const [departments, setDepartments] = useState([]);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [selectedDeptName, setSelectedDeptName] = useState("");
     const [allPreferences, setAllPreferences] = useState([]);
-    const [timeslots, setTimeslots] = useState([]);
-    const [selectedTimeslot, setSelectedTimeslot] = useState("");
-    const [selectedInstructor, setSelectedInstructor] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [showPreferenceModal, setShowPreferenceModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [showRemovePreferenceModal, setShowRemovePreferenceModal] = useState(false);
     const [instructorToDelete, setInstructorToDelete] = useState(null);
     const [instructorToEdit, setInstructorToEdit] = useState(null);
-    const [preferenceToRemove, setPreferenceToRemove] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState(""); // New state for search query
     const { auth } = useAuth();
-    const navigate = useNavigate();
 
     // Form validation errors
     const [formErrors, setFormErrors] = useState({
         firstName: "",
         lastName: "",
         department: "",
-        instructorSelect: "",
-        timeslotSelect: ""
     });
 
     // Pagination for the table
@@ -45,8 +37,8 @@ const Instructor = () => {
     const [recordsPerPage] = useState(10);
     const indexOfLastRecord = currentPage * recordsPerPage;
     const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-    const currentRecords = instructors.slice(indexOfFirstRecord, indexOfLastRecord);
-    const totalPages = Math.ceil(instructors.length / recordsPerPage);
+    const currentRecords = filteredInstructors.slice(indexOfFirstRecord, indexOfLastRecord); // Use filteredInstructors
+    const totalPages = Math.ceil(filteredInstructors.length / recordsPerPage); // Use filteredInstructors
     const isFirstPage = currentPage === 1;
     const isLastPage = currentPage === totalPages;
 
@@ -70,16 +62,6 @@ const Instructor = () => {
         return "";
     };
 
-    const validateInstructorSelect = (value) => {
-        if (!value) return "Please select an instructor";
-        return "";
-    };
-
-    const validateTimeslotSelect = (value) => {
-        if (!value) return "Please select a time slot";
-        return "";
-    };
-
     // Real-time validation handlers
     const handleFirstNameChange = (e) => {
         const value = e.target.value;
@@ -99,16 +81,18 @@ const Instructor = () => {
         setFormErrors(prev => ({ ...prev, department: validateDepartment(value) }));
     };
 
-    const handleInstructorSelectChange = (e) => {
-        const value = e.target.value;
-        setSelectedInstructor(value);
-        setFormErrors(prev => ({ ...prev, instructorSelect: validateInstructorSelect(value) }));
-    };
-
-    const handleTimeslotSelectChange = (e) => {
-        const value = e.target.value;
-        setSelectedTimeslot(value);
-        setFormErrors(prev => ({ ...prev, timeslotSelect: validateTimeslotSelect(value) }));
+    // Search handler
+    const handleSearchChange = (e) => {
+        const query = e.target.value.toLowerCase();
+        setSearchQuery(query);
+        setCurrentPage(1); // Reset to first page on search
+        const filtered = instructors.filter(
+            (instructor) =>
+                instructor.firstName.toLowerCase().includes(query) ||
+                instructor.lastName.toLowerCase().includes(query) ||
+                instructor.deptName.toLowerCase().includes(query)
+        );
+        setFilteredInstructors(filtered);
     };
 
     // Form submission validation
@@ -117,15 +101,6 @@ const Instructor = () => {
             firstName: validateFirstName(firstName),
             lastName: validateLastName(lastName),
             department: validateDepartment(selectedDeptName)
-        };
-        setFormErrors(prev => ({ ...prev, ...errors }));
-        return Object.values(errors).every(error => !error);
-    };
-
-    const validatePreferenceForm = () => {
-        const errors = {
-            instructorSelect: validateInstructorSelect(selectedInstructor),
-            timeslotSelect: validateTimeslotSelect(selectedTimeslot)
         };
         setFormErrors(prev => ({ ...prev, ...errors }));
         return Object.values(errors).every(error => !error);
@@ -152,25 +127,12 @@ const Instructor = () => {
                 },
             });
             setInstructors(response.data);
+            setFilteredInstructors(response.data); // Initialize filteredInstructors with full list
         } catch (error) {
             console.error(`Error fetching instructors: ${error}`);
             toast.error("Failed to fetch instructors");
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const fetchTimeSlots = async () => {
-        try {
-            const response = await axios.get("http://localhost:8080/api/timeslots", {
-                headers: {
-                    Authorization: `Bearer ${auth.accessToken}`,
-                },
-            });
-            setTimeslots(response.data);
-        } catch (error) {
-            console.error(`Error fetching timeslots: ${error}`);
-            toast.error("Failed to fetch timeslots");
         }
     };
 
@@ -274,14 +236,10 @@ const Instructor = () => {
         setFirstName("");
         setLastName("");
         setSelectedDeptName(departments.length > 0 ? departments[0].deptName : "");
-        setSelectedInstructor("");
-        setSelectedTimeslot("");
         setFormErrors({
             firstName: "",
             lastName: "",
             department: "",
-            instructorSelect: "",
-            timeslotSelect: ""
         });
     };
 
@@ -289,7 +247,6 @@ const Instructor = () => {
         const fetchData = async () => {
             await fetchInstructors();
             await fetchDepartments();
-            await fetchTimeSlots();
             await fetchAllPreferences();
         };
         fetchData();
@@ -304,8 +261,6 @@ const Instructor = () => {
                 firstName: validateFirstName(instructorToEdit.firstName),
                 lastName: validateLastName(instructorToEdit.lastName),
                 department: validateDepartment(instructorToEdit.deptName),
-                instructorSelect: "",
-                timeslotSelect: ""
             });
         }
     }, [instructorToEdit]);
@@ -328,101 +283,12 @@ const Instructor = () => {
         }
     };
 
-    const handleRemovePreference = async () => {
-        if (!preferenceToRemove) return;
-        const { instructorId, preferenceId } = preferenceToRemove;
-
-        try {
-            const response = await axios.delete(
-                `http://localhost:8080/api/instructors/${instructorId}/preferences/${preferenceId}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${auth.accessToken}`,
-                    },
-                }
-            );
-
-            if (response.status === 204 || response.status === 200) {
-                await Promise.all([fetchAllPreferences(), fetchInstructors()]);
-                setShowRemovePreferenceModal(false);
-                setPreferenceToRemove(null);
-                toast.success("Preference removed successfully!");
-            } else {
-                console.error("Unexpected status:", response.status);
-                toast.error("Failed to remove preference");
-            }
-        } catch (error) {
-            console.error("Error removing preference:", error.response?.data || error.message);
-            toast.error("Error: " + (error.response?.data?.message || error.message));
-        }
-    };
-
-    const handleAddPreference = async () => {
-        if (!validatePreferenceForm()) {
-            toast.error("Please fix all validation errors before submitting.");
-            return;
-        }
-
-        const instructorId = selectedInstructor;
-        const timeslotObj = JSON.parse(selectedTimeslot);
-        const preferenceId = timeslotObj.id;
-        const postData = {
-            timeslot: timeslotObj,
-            instructorId: instructorId,
-        };
-        try {
-            const response = await fetch(
-                `http://localhost:8080/api/instructors/${instructorId}/preferences/${preferenceId}`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${auth.accessToken}`,
-                    },
-                    body: JSON.stringify(postData),
-                }
-            );
-            if (response.ok) {
-                await fetchAllPreferences();
-                await fetchInstructors();
-                setShowPreferenceModal(false);
-                setSelectedInstructor("");
-                setSelectedTimeslot("");
-                toast.success("Preference added successfully!");
-            } else {
-                const errorData = await response.json();
-                console.error("Failed to add preference", errorData);
-                toast.error(errorData.message || "Failed to add preference");
-            }
-        } catch (error) {
-            console.error(`Error adding preference: ${error}`);
-            toast.error("Error adding preference");
-        }
-    };
-
     const getInstructorPreferences = (instructorId) => {
         const instructorIdStr = String(instructorId);
         const instructorPrefs = allPreferences.find(
             (pref) => String(pref.instructorName) === instructorIdStr
         );
         return instructorPrefs ? instructorPrefs.preferences : [];
-    };
-
-    const groupPreferencesByDay = (preferences) => {
-        const grouped = {};
-        preferences.forEach((pref) => {
-            if (!grouped[pref.day]) {
-                grouped[pref.day] = [];
-            }
-            grouped[pref.day].push(pref);
-        });
-        return grouped;
-    };
-
-    const getInstructorName = (instructorId) => {
-        const idStr = String(instructorId);
-        const instructor = instructors.find((inst) => String(inst.id) === idStr);
-        return instructor ? `${instructor.firstName} ${instructor.lastName}` : idStr;
     };
 
     const getTimeSlotColor = (day) => {
@@ -632,97 +498,6 @@ const Instructor = () => {
         );
     };
 
-    const renderAddPreferenceModal = () => {
-        return (
-            showPreferenceModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-semibold mb-4 text-gray-800">Add Time Preference</h2>
-                        <form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                handleAddPreference();
-                            }}
-                        >
-                            <div className="mb-4">
-                                <label htmlFor="instructorSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Select Instructor
-                                </label>
-                                <select
-                                    id="instructorSelect"
-                                    value={selectedInstructor}
-                                    onChange={handleInstructorSelectChange}
-                                    className={`w-full px-4 py-2 border ${
-                                        formErrors.instructorSelect
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-300 focus:ring-blue-500"
-                                    } rounded-md focus:outline-none focus:ring-2`}
-                                    required
-                                >
-                                    <option value="">Select an instructor</option>
-                                    {instructors.map((instructor) => (
-                                        <option key={instructor.id} value={instructor.id}>
-                                            {instructor.firstName} {instructor.lastName} - {instructor.deptName}
-                                        </option>
-                                    ))}
-                                </select>
-                                {formErrors.instructorSelect && (
-                                    <p className="text-red-500 text-xs mt-1">{formErrors.instructorSelect}</p>
-                                )}
-                            </div>
-                            <div className="mb-6">
-                                <label htmlFor="timeslotSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Select Time Slot
-                                </label>
-                                <select
-                                    id="timeslotSelect"
-                                    value={selectedTimeslot}
-                                    onChange={handleTimeslotSelectChange}
-                                    className={`w-full px-4 py-2 border ${
-                                        formErrors.timeslotSelect
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : "border-gray-300 focus:ring-blue-500"
-                                    } rounded-md focus:outline-none focus:ring-2`}
-                                    required
-                                >
-                                    <option value="">Select a time slot</option>
-                                    {timeslots.map((timeslot) => (
-                                        <option key={timeslot.id} value={JSON.stringify(timeslot)}>
-                                            {timeslot.day} ({timeslot.startTime} - {timeslot.endTime})
-                                        </option>
-                                    ))}
-                                </select>
-                                {formErrors.timeslotSelect && (
-                                    <p className="text-red-500 text-xs mt-1">{formErrors.timeslotSelect}</p>
-                                )}
-                            </div>
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowPreferenceModal(false);
-                                        setSelectedInstructor("");
-                                        setSelectedTimeslot("");
-                                    }}
-                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                    disabled={!selectedInstructor || !selectedTimeslot}
-                                >
-                                    Add Preference
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )
-        );
-    };
-
     return (
         <DashboardLayout>
             <div className="instructor-container p-6 bg-gray-50 min-h-screen">
@@ -735,12 +510,6 @@ const Instructor = () => {
                             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-200"
                         >
                             <BiPlus className="mr-2" /> Add Instructor
-                        </button>
-                        <button
-                            onClick={() => setShowPreferenceModal(true)}
-                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-200"
-                        >
-                            <FaCalendarAlt className="mr-2" /> Add Preference
                         </button>
                     </div>
                 </div>
@@ -782,107 +551,23 @@ const Instructor = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-                    <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                            <FaCalendarAlt className="mr-2 text-blue-600" />
-                            Instructor Preferences
-                        </h2>
-                    </div>
-                    {allPreferences.length > 0 ? (
-                        <div className="p-4">
-                            {allPreferences.map((instructor) => {
-                                const instructorFullName = getInstructorName(instructor.instructorName);
-                                const groupedPreferences = groupPreferencesByDay(instructor.preferences);
-                                const instIdStr = String(instructor.instructorName);
-                                const deptName = instructors.find((inst) => String(inst.id) === instIdStr)?.deptName || "";
-
-                                return (
-                                    <div key={instructor.instructorName} className="mb-6 last:mb-0">
-                                        <div className="flex items-center mb-3">
-                                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mr-3">
-                                                <BiUser className="text-xl" />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-gray-800">{instructorFullName}</h3>
-                                                <p className="text-sm text-gray-500">{deptName}</p>
-                                            </div>
-                                        </div>
-                                        {instructor.preferences.length > 0 ? (
-                                            <div className="ml-11">
-                                                <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-                                                    {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
-                                                        <div key={day} className="flex flex-col">
-                                                            <h4 className="text-sm font-medium text-gray-600 mb-2">{day}</h4>
-                                                            {groupedPreferences[day] ? (
-                                                                <div className="space-y-2">
-                                                                    {groupedPreferences[day].map((pref) => (
-                                                                        <div
-                                                                            key={pref.id}
-                                                                            className={`p-2 rounded border ${getTimeSlotColor(day)} text-sm relative group`}
-                                                                        >
-                                                                            <div className="font-medium">
-                                                                                {pref.startTime} - {pref.endTime}
-                                                                            </div>
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    const instructorId = instructors.find(inst =>
-                                                                                        `${inst.firstName} ${inst.lastName}` === getInstructorName(instructor.instructorName)
-                                                                                    )?.id;
-                                                                                    setPreferenceToRemove({
-                                                                                        instructorId: instructorId,
-                                                                                        preferenceId: pref.id,
-                                                                                        day: pref.day,
-                                                                                        time: `${pref.startTime} - ${pref.endTime}`,
-                                                                                    });
-                                                                                    setShowRemovePreferenceModal(true);
-                                                                                }}
-                                                                                className="absolute -right-1 -top-1 bg-white rounded-full p-1 shadow-sm border border-gray-200 hidden group-hover:block hover:bg-red-50 hover:text-red-500 transition-colors"
-                                                                            >
-                                                                                <BiX className="text-sm" />
-                                                                            </button>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="text-xs text-gray-400 italic p-2 border border-dashed border-gray-200 rounded h-10 flex items-center justify-center">
-                                                                    No slots
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="ml-11 p-3 bg-gray-50 rounded border border-gray-200 text-gray-500 italic">
-                                                No preferences set for this instructor
-                                            </div>
-                                        )}
-                                        <div className="mt-4 ml-11 border-b border-gray-100 pb-2"></div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center p-8 text-gray-500">
-                            <FaCalendarAlt className="text-4xl text-gray-300 mb-3" />
-                            <p className="text-center italic">No instructor preferences available</p>
-                            <button
-                                onClick={() => setShowPreferenceModal(true)}
-                                className="mt-3 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                            >
-                                <BiPlus className="mr-1" /> Add First Preference
-                            </button>
-                        </div>
-                    )}
-                </div>
-
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="p-6 border-b border-gray-200 flex justify-between items-center">
                         <h2 className="text-xl font-semibold text-gray-800">Existing Instructors</h2>
-                        <div className="text-sm text-gray-500">
-                            Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, instructors.length)} of {instructors.length}{" "}
-                            entries
+                        <div className="flex items-center space-x-4">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={handleSearchChange}
+                                    placeholder=  "      Search instructors..."
+                                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <BiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            </div>
+                            <div className="text-sm text-gray-500">
+                                Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredInstructors.length)} of {filteredInstructors.length} entries
+                            </div>
                         </div>
                     </div>
                     {isLoading ? (
@@ -925,11 +610,15 @@ const Instructor = () => {
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{instructor.lastName}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{instructor.deptName}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        <div className="flex flex-wrap gap-1">
+                                                        <div className="flex flex-wrap gap-1 max-w-md">
                                                             {preferences && preferences.length > 0 ? (
                                                                 preferences.map((pref) => (
-                                                                    <span key={pref.id} className={`px-2 py-1 rounded-full text-xs ${getTimeSlotColor(pref.day)}`}>
-                                                                        {pref.day} {pref.startTime}-{pref.endTime}
+                                                                    <span
+                                                                        key={pref.id}
+                                                                        className={`px-2 py-1 rounded-full text-xs ${getTimeSlotColor(pref.day)}`}
+                                                                        title={`${pref.day} ${pref.startTime}-${pref.endTime}`}
+                                                                    >
+                                                                        {pref.day.slice(0, 3)} {pref.startTime}
                                                                     </span>
                                                                 ))
                                                             ) : (
@@ -1006,7 +695,6 @@ const Instructor = () => {
 
             {renderAddInstructorModal()}
             {renderEditInstructorModal()}
-            {renderAddPreferenceModal()}
 
             {showDeleteModal && instructorToDelete && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1034,38 +722,6 @@ const Instructor = () => {
                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                             >
                                 Delete Instructor
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showRemovePreferenceModal && preferenceToRemove && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <div className="flex items-center justify-center bg-red-100 h-12 w-12 rounded-full mx-auto mb-4">
-                            <BiX className="text-red-600 text-xl" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900 text-center mb-2">Remove Time Preference</h3>
-                        <p className="text-sm text-gray-600 text-center mb-6">
-                            Are you sure you want to remove the {preferenceToRemove.day} {preferenceToRemove.time} preference for{" "}
-                            {getInstructorName(preferenceToRemove.instructorId)}?
-                        </p>
-                        <div className="flex justify-center space-x-3">
-                            <button
-                                onClick={() => {
-                                    setShowRemovePreferenceModal(false);
-                                    setPreferenceToRemove(null);
-                                }}
-                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleRemovePreference}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                            >
-                                Remove
                             </button>
                         </div>
                     </div>

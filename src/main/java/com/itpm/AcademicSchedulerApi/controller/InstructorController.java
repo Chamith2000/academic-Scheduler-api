@@ -17,7 +17,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/instructors")
-@PreAuthorize("hasAuthority('ADMIN')")
 public class InstructorController {
 
     private final InstructorService instructorService;
@@ -27,12 +26,14 @@ public class InstructorController {
         this.instructorService = instructorService;
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PostMapping
     public ResponseEntity<Instructor> createInstructor(@RequestBody InstructorDTO instructorDto) {
         Instructor savedInstructor = instructorService.createInstructor(instructorDto);
         return new ResponseEntity<>(savedInstructor, HttpStatus.CREATED);
     }
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<InstructorDTO> updateInstructor(@PathVariable Long id, @RequestBody InstructorDTO instructorDto) {
         InstructorDTO updatedInstructorDto = instructorService.updateInstructor(id, instructorDto);
@@ -41,24 +42,28 @@ public class InstructorController {
 
 
 
+    @PreAuthorize("hasAuthority('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInstructor(@PathVariable Long id) {
         instructorService.deleteInstructor(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
     @PostMapping("/{instructorId}/preferences/{timeslotId}")
     public ResponseEntity<Instructor> addPreference(@PathVariable Long instructorId, @PathVariable Long timeslotId) {
         Instructor instructor = instructorService.addPreference(instructorId, timeslotId);
         return ResponseEntity.ok(instructor);
     }
 
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
     @PutMapping("/{instructorId}/preferences")
     public ResponseEntity<InstructorDTO> updatePreference(@PathVariable Long instructorId, @RequestBody PreferenceDto preferenceDto) {
         InstructorDTO instructorDto = instructorService.updatePreference(instructorId, preferenceDto);
         return ResponseEntity.ok(instructorDto);
     }
 
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INSTRUCTOR')")
     @GetMapping("/{id}")
     public ResponseEntity<Instructor> getInstructorById(@PathVariable Long id) {
         Instructor instructor = instructorService.getInstructorById(id).orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + id));
@@ -66,15 +71,17 @@ public class InstructorController {
     }
 
 
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INSTRUCTOR')")
     @GetMapping
     public ResponseEntity<List<InstructorDTO>> getAllInstructors() {
         List<InstructorDTO> instructors = instructorService.getAllInstructors();
         return new ResponseEntity<>(instructors, HttpStatus.OK);
     }
 
-
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INSTRUCTOR')")
     @GetMapping("/preferences")
     public List<InstructorPreferencesDto> getAllInstructorPreferences() {
         return instructorService.getAllInstructorPreferences();
     }
+
 }

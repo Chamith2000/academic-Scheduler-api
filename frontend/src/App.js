@@ -16,7 +16,10 @@ import Login from "./pages/login/Login";
 import Register from "./pages/register/Register";
 import LandingPage from "./pages/landing-page/LandingPage";
 import Unauthorized from "./pages/unauthorized/Unauthorized";
-import StudentTimetable from "./pages/students/StudentTimetable";  // Adjust the path according to your project structure
+import StudentTimetable from "./pages/students/StudentTimetable";
+import InstructorDashboardPage from "./components/InstructorDashboard"
+import InstructorPreferencesPage from "./components/InstructorPreferences";
+import InstructorCourses from "./pages/instructors/InstructorCourses";
 
 
 const ROLES = {
@@ -51,12 +54,19 @@ function App() {
           >
             <Route path="instructor" element={<Instructor />} />
             <Route path="instructor-timetable" element={<InstructorTimetable />} />
+            <Route path="instructor-dashboard" element={<InstructorDashboardPage />} />
+            <Route path="instructor-preferences" element={<InstructorPreferencesPage />} />
+            <Route path="instructor-courses" element={<InstructorCourses />} />
           </Route>
 
           <Route
               element={<RequireAuth allowedRoles={[ROLES.student]} />}
           >
             <Route path="student-timetable" element={<StudentTimetable />} />
+            <Route
+                path="instructor-preference"
+                element={<InstructorPreference />}
+            />
           </Route>
 
           <Route element={<RequireAuth allowedRoles={[ROLES.admin]} />}>
@@ -67,10 +77,7 @@ function App() {
             <Route path="faculty" element={<Faculty />} />
             <Route path="department" element={<Department />} />
             <Route path="section" element={<Section />} />
-            <Route
-                path="instructor-preference"
-                element={<InstructorPreference />}
-            />
+
           </Route>
           end of protected routes
         </Route>

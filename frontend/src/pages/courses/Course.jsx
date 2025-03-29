@@ -3,7 +3,7 @@ import axios from "axios";
 import DashboardLayout from "../../Layout/DashboardLayout";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
-import { PlusCircle, Edit, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Search, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 
 const Course = () => {
     const [courses, setCourses] = useState([]);
@@ -54,7 +54,6 @@ const Course = () => {
     // Validation functions
     const validateCourseCode = (value) => {
         if (!value) return "Course code is required";
-        // if (!/^[A-Z]{2,4}\d{3}$/.test(value)) return "Course code must be 2-4 letters followed by 3 numbers (e.g., CS101)";
         return "";
     };
 
@@ -180,8 +179,6 @@ const Course = () => {
 
     const addCourse = (e) => {
         e.preventDefault();
-
-        // Validate all fields before submission
         const codeError = validateCourseCode(courseCode);
         const nameError = validateCourseName(courseName);
         const yearError = validateYear(year);
@@ -226,7 +223,6 @@ const Course = () => {
 
     const updateCourse = (e) => {
         e.preventDefault();
-
         const codeError = validateCourseCode(courseCode);
         const nameError = validateCourseName(courseName);
         const yearError = validateYear(year);
@@ -311,7 +307,6 @@ const Course = () => {
             setSelectedProgrammeName(courseToEdit.programmeName);
             setSelectedDeptName(courseToEdit.deptName);
             setSelectedInstructorName(courseToEdit.instructorName);
-            // Validate initial values
             setErrors({
                 courseCode: validateCourseCode(courseToEdit.courseCode),
                 courseName: validateCourseName(courseToEdit.courseName),
@@ -332,6 +327,45 @@ const Course = () => {
             toast.classList.add("opacity-0", "transition-opacity", "duration-500");
             setTimeout(() => document.body.removeChild(toast), 500);
         }, 3000);
+    };
+
+    const generateReport = () => {
+        const headers = [
+            "Course Code",
+            "Course Name",
+            "Year",
+            "Semester",
+            "Programme",
+            "Department",
+            "Instructor"
+        ];
+
+        const csvRows = courses.map(course => [
+            course.courseCode,
+            course.courseName,
+            course.year,
+            course.semester,
+            course.programmeName,
+            course.deptName,
+            course.instructorName
+        ].map(value => `"${value}"`).join(","));
+
+        const csvContent = [
+            headers.join(","),
+            ...csvRows
+        ].join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Course_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast("Report generated successfully!", "success");
     };
 
     useEffect(() => {
@@ -409,6 +443,13 @@ const Course = () => {
                                 <PlusCircle size={16} />
                                 Add Course
                             </button>
+                            <button
+                                onClick={generateReport}
+                                className="btn gap-2 bg-green-600 text-white rounded-md hover:bg-green-700 border-0"
+                            >
+                                <FileText size={16} />
+                                Generate Report
+                            </button>
                         </div>
                     </div>
                     {isLoading ? (
@@ -451,14 +492,14 @@ const Course = () => {
                                                 <td className="px-6 py-4">{course.year}</td>
                                                 <td className="px-6 py-4">{course.semester}</td>
                                                 <td className="px-6 py-4">
-                                                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                                                        {course.programmeName}
-                                                    </span>
+                                                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                            {course.programmeName}
+                                                        </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                                                        {course.deptName}
-                                                    </span>
+                                                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                            {course.deptName}
+                                                        </span>
                                                 </td>
                                                 <td className="px-6 py-4">{course.instructorName}</td>
                                                 <td className="px-6 py-4">
@@ -514,162 +555,103 @@ const Course = () => {
                     )}
                 </section>
 
-                {/* Add/Edit Course Modal */}
+                {/* Modal for Add/Edit Course */}
                 {showModal && (
-                    <div className="modal modal-open">
-                        <div className="modal-box max-w-3xl bg-white">
-                            <div className="flex justify-between items-center border-b pb-4">
-                                <h3 className="text-lg font-bold text-gray-900">
-                                    {editingCourseId ? "Edit Course" : "Add New Course"}
-                                </h3>
-                                <button
-                                    onClick={() => {
-                                        setShowModal(false);
-                                        resetForm();
-                                    }}
-                                    className="btn btn-sm btn-circle btn-ghost"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                            <form className="mt-4" onSubmit={editingCourseId ? updateCourse : addCourse}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Course Code</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. CS101"
-                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.courseCode ? 'border-red-500' : ''}`}
-                                            value={courseCode}
-                                            onChange={handleCourseCodeChange}
-                                            required
-                                        />
-                                        {errors.courseCode && (
-                                            <span className="text-red-500 text-sm mt-1">{errors.courseCode}</span>
-                                        )}
-                                    </div>
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Course Name</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Introduction to Programming"
-                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.courseName ? 'border-red-500' : ''}`}
-                                            value={courseName}
-                                            onChange={handleCourseNameChange}
-                                            required
-                                        />
-                                        {errors.courseName && (
-                                            <span className="text-red-500 text-sm mt-1">{errors.courseName}</span>
-                                        )}
-                                    </div>
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Year</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="6"
-                                            placeholder="1-6"
-                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.year ? 'border-red-500' : ''}`}
-                                            value={year}
-                                            onChange={handleYearChange}
-                                            required
-                                        />
-                                        {errors.year && (
-                                            <span className="text-red-500 text-sm mt-1">{errors.year}</span>
-                                        )}
-                                    </div>
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Semester</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="2"
-                                            placeholder="1-2"
-                                            className={`input input-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.semester ? 'border-red-500' : ''}`}
-                                            value={semester}
-                                            onChange={handleSemesterChange}
-                                            required
-                                        />
-                                        {errors.semester && (
-                                            <span className="text-red-500 text-sm mt-1">{errors.semester}</span>
-                                        )}
-                                    </div>
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Programme</span>
-                                        </label>
-                                        <select
-                                            className="select select-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={selectedProgrammeName}
-                                            onChange={(e) => setSelectedProgrammeName(e.target.value)}
-                                            required
-                                        >
-                                            {programmes.map((programme) => (
-                                                <option key={programme.id} value={programme.programmeName}>
-                                                    {programme.programmeName}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Department</span>
-                                        </label>
-                                        <select
-                                            className="select select-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={selectedDeptName}
-                                            onChange={(e) => setSelectedDeptName(e.target.value)}
-                                            required
-                                        >
-                                            {departments.map((department) => (
-                                                <option key={department.id} value={department.deptName}>
-                                                    {department.deptName}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-control">
-                                        <label className="label">
-                                            <span className="label-text text-gray-700 font-medium">Instructor</span>
-                                        </label>
-                                        <select
-                                            className="select select-bordered w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            value={selectedInstructorName}
-                                            onChange={(e) => setSelectedInstructorName(e.target.value)}
-                                            required
-                                        >
-                                            {instructors.map((instructor) => (
-                                                <option key={instructor.id} value={instructor.firstName}>
-                                                    {instructor.firstName}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                            <h2 className="text-xl font-semibold mb-4">
+                                {editingCourseId ? "Edit Course" : "Add New Course"}
+                            </h2>
+                            <form onSubmit={editingCourseId ? updateCourse : addCourse}>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Course Code</label>
+                                    <input
+                                        type="text"
+                                        value={courseCode}
+                                        onChange={handleCourseCodeChange}
+                                        className={`mt-1 block w-full border ${errors.courseCode ? 'border-red-500' : 'border-gray-300'} rounded-md p-2`}
+                                    />
+                                    {errors.courseCode && <p className="text-red-500 text-xs mt-1">{errors.courseCode}</p>}
                                 </div>
-                                <div className="flex justify-end gap-2 mt-6">
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Course Name</label>
+                                    <input
+                                        type="text"
+                                        value={courseName}
+                                        onChange={handleCourseNameChange}
+                                        className={`mt-1 block w-full border ${errors.courseName ? 'border-red-500' : 'border-gray-300'} rounded-md p-2`}
+                                    />
+                                    {errors.courseName && <p className="text-red-500 text-xs mt-1">{errors.courseName}</p>}
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Year</label>
+                                    <input
+                                        type="number"
+                                        value={year}
+                                        onChange={handleYearChange}
+                                        className={`mt-1 block w-full border ${errors.year ? 'border-red-500' : 'border-gray-300'} rounded-md p-2`}
+                                    />
+                                    {errors.year && <p className="text-red-500 text-xs mt-1">{errors.year}</p>}
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Semester</label>
+                                    <input
+                                        type="number"
+                                        value={semester}
+                                        onChange={handleSemesterChange}
+                                        className={`mt-1 block w-full border ${errors.semester ? 'border-red-500' : 'border-gray-300'} rounded-md p-2`}
+                                    />
+                                    {errors.semester && <p className="text-red-500 text-xs mt-1">{errors.semester}</p>}
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Programme</label>
+                                    <select
+                                        value={selectedProgrammeName}
+                                        onChange={(e) => setSelectedProgrammeName(e.target.value)}
+                                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                    >
+                                        {programmes.map((prog) => (
+                                            <option key={prog.id} value={prog.programmeName}>{prog.programmeName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Department</label>
+                                    <select
+                                        value={selectedDeptName}
+                                        onChange={(e) => setSelectedDeptName(e.target.value)}
+                                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                    >
+                                        {departments.map((dept) => (
+                                            <option key={dept.id} value={dept.deptName}>{dept.deptName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700">Instructor</label>
+                                    <select
+                                        value={selectedInstructorName}
+                                        onChange={(e) => setSelectedInstructorName(e.target.value)}
+                                        className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+                                    >
+                                        {instructors.map((inst) => (
+                                            <option key={inst.id} value={inst.firstName}>{inst.firstName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex justify-end gap-2">
                                     <button
                                         type="button"
-                                        className="btn btn-outline"
-                                        onClick={() => {
-                                            setShowModal(false);
-                                            resetForm();
-                                        }}
+                                        onClick={() => { setShowModal(false); resetForm(); }}
+                                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
-                                        className="btn bg-blue-600 hover:bg-blue-700 text-white border-0 rounded-md"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                                     >
-                                        {editingCourseId ? "Update Course" : "Add Course"}
+                                        {editingCourseId ? "Update" : "Add"}
                                     </button>
                                 </div>
                             </form>
@@ -679,25 +661,20 @@ const Course = () => {
 
                 {/* Delete Confirmation Modal */}
                 {deletingCourseId && (
-                    <div className="modal modal-open">
-                        <div className="modal-box bg-white">
-                            <h3 className="font-bold text-lg text-gray-900">Confirm Delete</h3>
-                            <p className="py-4 text-gray-600">
-                                Are you sure you want to delete this course? This action cannot be undone.
-                            </p>
-                            <div className="modal-action">
+                    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+                            <h2 className="text-xl font-semibold mb-4">Confirm Deletion</h2>
+                            <p className="mb-4">Are you sure you want to delete this course?</p>
+                            <div className="flex justify-end gap-2">
                                 <button
-                                    className="btn btn-outline"
                                     onClick={() => setDeletingCourseId(null)}
+                                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    className="btn bg-red-600 hover:bg-red-700 text-white border-0"
-                                    onClick={() => {
-                                        handleDelete(deletingCourseId);
-                                        setDeletingCourseId(null);
-                                    }}
+                                    onClick={() => { handleDelete(deletingCourseId); setDeletingCourseId(null); }}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                                 >
                                     Delete
                                 </button>
