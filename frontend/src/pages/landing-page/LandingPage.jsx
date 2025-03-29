@@ -38,7 +38,7 @@ const LandingPage = () => {
                         <li>
                             <Link
                                 to="/login"
-                                className="inline-flex items-center justify-center h-10 px-6 font-medium tracking-wide text-gray-700 dark:text-white transition duration-200 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 focus:shadow-outline focus:outline-none"
+                                className="inline-flex items-center justify-center h-10 px-6 font-medium tracking-wide text-gray-700 dark:text-white transition duration-200 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 focus:shadow-outline focus:outline-none hover:scale-105 shadow-md hover:shadow-lg"
                             >
                                 Sign In
                             </Link>
@@ -439,7 +439,7 @@ const LandingPage = () => {
                     <ul className="flex flex-col mb-3 space-y-2 lg:mb-0 sm:space-y-0 sm:space-x-5 sm:flex-row">
                         <li>
                             <a
-                                href="/"
+                                href="/privacy-policy"
                                 className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300 hover:text-blue-600 dark:hover:text-blue-400"
                             >
                                 Privacy Policy
@@ -447,7 +447,7 @@ const LandingPage = () => {
                         </li>
                         <li>
                             <a
-                                href="/"
+                                href="/terms-of-service"
                                 className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-300 hover:text-blue-600 dark:hover:text-blue-400"
                             >
                                 Terms of Service

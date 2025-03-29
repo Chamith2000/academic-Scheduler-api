@@ -5,20 +5,21 @@ import useAuth from "../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import SectionTable from "./SectionTable";
-import { PlusIcon, XMarkIcon } from "@heroicons/react/24/solid";
+import { PlusIcon, XMarkIcon, MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 
 const Section = () => {
     const [sections, setSections] = useState([]);
+    const [filteredSections, setFilteredSections] = useState([]);
     const [courses, setCourses] = useState([]);
     const [numberOfClasses, setNumberOfClasses] = useState("");
     const [selectedCourseName, setSelectedCourseName] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const { auth } = useAuth();
     const navigate = useNavigate();
 
-    // Fetch all sections
     const fetchSections = () => {
         setIsLoading(true);
         axios
@@ -29,6 +30,7 @@ const Section = () => {
             })
             .then((response) => {
                 setSections(response.data);
+                setFilteredSections(response.data);
                 setIsLoading(false);
             })
             .catch((error) => {
@@ -38,7 +40,6 @@ const Section = () => {
             });
     };
 
-    // Fetch courses without sections
     const fetchCourses = () => {
         axios
             .get("http://localhost:8080/api/courses", {
@@ -48,7 +49,6 @@ const Section = () => {
             })
             .then((response) => {
                 setCourses(response.data);
-                // If no course is selected and courses exist, select the first course
                 if (response.data.length > 0 && !selectedCourseName) {
                     setSelectedCourseName(response.data[0].courseName);
                 }
@@ -59,7 +59,6 @@ const Section = () => {
             });
     };
 
-    // Add a new section
     const addSection = () => {
         if (!numberOfClasses) {
             toast.error("Please enter number of classes");
@@ -97,6 +96,15 @@ const Section = () => {
             });
     };
 
+    const handleSearch = (query) => {
+        setSearchQuery(query);
+        const filtered = sections.filter((section) =>
+            section.courseName.toLowerCase().includes(query.toLowerCase()) ||
+            section.numberOfClasses.toString().includes(query)
+        );
+        setFilteredSections(filtered);
+    };
+
     useEffect(() => {
         fetchSections();
         fetchCourses();
@@ -113,13 +121,25 @@ const Section = () => {
                                 <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                             )}
                         </h2>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105"
-                        >
-                            <PlusIcon className="h-5 w-5 mr-2" />
-                            Add New Section
-                        </button>
+                        <div className="flex items-center space-x-4">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearch(e.target.value)}
+                                    placeholder="       Search sections..."
+                                    className="pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" // Increased padding-left and added width
+                                />
+                                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                            </div>
+                            <button
+                                onClick={() => setIsModalOpen(true)}
+                                className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-300 ease-in-out transform hover:scale-105"
+                            >
+                                <PlusIcon className="h-5 w-5 mr-2" />
+                                Add New Section
+                            </button>
+                        </div>
                     </div>
 
                     <div className="p-6">
@@ -127,15 +147,13 @@ const Section = () => {
                             <span className="font-semibold">Tip:</span> Sections allow you to organize your courses into different class groups.
                         </div>
 
-                        {/* Sections Table */}
                         <SectionTable
-                            sections={sections}
+                            sections={filteredSections}
                             onSectionUpdated={fetchSections}
                         />
                     </div>
                 </div>
 
-                {/* Add Section Modal */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-x-hidden overflow-y-auto outline-none focus:outline-none">
                         <div className="relative w-full max-w-md mx-auto my-6">
@@ -211,7 +229,6 @@ const Section = () => {
                     </div>
                 )}
 
-                {/* Semi-transparent overlay */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-40 bg-black opacity-25"></div>
                 )}

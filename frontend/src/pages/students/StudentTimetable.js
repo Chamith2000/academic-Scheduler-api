@@ -52,11 +52,44 @@ const StudentTimetable = () => {
             .catch((error) => console.error(`Error: ${error}`));
     };
 
-    // handle logout
+    // Handle logout
     const logout = () => {
         setAuth({});
         localStorage.removeItem("user");
         navigate("/login");
+    };
+
+    // Function to download timetable as CSV
+    const downloadTimetable = () => {
+        const scheduleData = Array.isArray(timetable) ? timetable[0] : timetable;
+        const uniqueTimeslots = [...new Set(timeslots.map(timeSlot => timeSlot.split(': ')[1]))];
+        const formattedTimetable = formatTimetableData(scheduleData, uniqueTimeslots);
+
+        // Prepare CSV content
+        let csvContent = "Time Slot,Monday,Tuesday,Wednesday,Thursday,Friday\n";
+
+        formattedTimetable.timeslots.forEach((timeslot, index) => {
+            const row = [timeslot];
+            formattedTimetable.days.forEach(day => {
+                const slot = formattedTimetable.schedule[day][index];
+                if (slot) {
+                    row.push(`${slot.courseCode} (${slot.roomName})`);
+                } else {
+                    row.push("-");
+                }
+            });
+            csvContent += row.join(",") + "\n";
+        });
+
+        // Create a Blob and trigger download
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "student_timetable.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     useEffect(() => {
@@ -69,6 +102,12 @@ const StudentTimetable = () => {
             <div className="container mx-auto p-4">
                 <div className="flex justify-between items-center mb-4">
                     <h1 className="text-2xl font-bold">Student Timetable</h1>
+                    <button
+                        onClick={downloadTimetable}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        Download Timetable
+                    </button>
                 </div>
 
                 {isLoading ? (

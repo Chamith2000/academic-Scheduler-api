@@ -184,6 +184,7 @@ const Programme = () => {
             <div className="container mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">Programme Management</h1>
+
                     <button
                         onClick={toggleModal}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
@@ -250,21 +251,27 @@ const Programme = () => {
                 {/* Programme List */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-xl font-semibold text-gray-800">Programme List</h2>
-                    </div>
-
-                    <div className="p-4 border-b border-gray-200 bg-gray-50">
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search size={18} className="text-gray-400"/>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-800">Programme List</h2>
+                            <div className="flex space-x-2">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="     Search programmes..."
+                                        className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        value={filterQuery}
+                                        onChange={(e) => setFilterQuery(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    onClick={toggleModal}
+                                    className="flex items-center space-x-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                >
+                                    <PlusCircle size={18} />
+                                    <span>Add Programme</span>
+                                </button>
                             </div>
-                            <input
-                                type="text"
-                                placeholder="     Search programmes..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                                value={filterQuery}
-                                onChange={(e) => setFilterQuery(e.target.value)}
-                            />
                         </div>
                     </div>
 
@@ -415,16 +422,16 @@ const Programme = () => {
 
             {/* Toast Container */}
             <ToastContainer
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-        />
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+            />
         </DashboardLayout>
     );
 };

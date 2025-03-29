@@ -1,31 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Button, Form, Container, Row, Col, Card, Table, Badge, Spinner } from 'react-bootstrap';
-import useAuth from "../hooks/useAuth"; // Adjust the path as per your project structure
-import DashboardLayout from "../Layout/DashboardLayout"; // Assuming you want to use the same layout
+import useAuth from "../hooks/useAuth";
+import DashboardLayout from "../Layout/DashboardLayout";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/solid"; // Import the MagnifyingGlassIcon
 
 const TimeSlot = () => {
     const [timeSlots, setTimeSlots] = useState([]);
+    const [filteredTimeSlots, setFilteredTimeSlots] = useState([]);
     const [day, setDay] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
-
-    // Validation state
-    const [validations, setValidations] = useState({
-        day: { isValid: true, message: '' },
-        startTime: { isValid: true, message: '' },
-        endTime: { isValid: true, message: '' }
-    });
+    const [searchQuery, setSearchQuery] = useState('');
 
     const { auth } = useAuth();
 
-    // Days of the week for dropdown
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    // Validation functions
     const validateDay = (value) => {
         if (!value) {
             return { isValid: false, message: 'Please select a day' };
@@ -34,7 +28,6 @@ const TimeSlot = () => {
     };
 
     const validateTime = (startTime, endTime) => {
-        // Check if both start and end times are provided
         if (!startTime || !endTime) {
             return {
                 startTime: {
@@ -48,14 +41,12 @@ const TimeSlot = () => {
             };
         }
 
-        // Convert times to minutes for comparison
         const [startHours, startMinutes] = startTime.split(':').map(Number);
         const [endHours, endMinutes] = endTime.split(':').map(Number);
 
         const startTimeInMinutes = startHours * 60 + startMinutes;
         const endTimeInMinutes = endHours * 60 + endMinutes;
 
-        // Validate that end time is after start time
         if (endTimeInMinutes <= startTimeInMinutes) {
             return {
                 startTime: { isValid: false, message: 'Start time must be before end time' },
@@ -69,7 +60,12 @@ const TimeSlot = () => {
         };
     };
 
-    // Fetch all time slots
+    const [validations, setValidations] = useState({
+        day: { isValid: true, message: '' },
+        startTime: { isValid: true, message: '' },
+        endTime: { isValid: true, message: '' }
+    });
+
     const fetchTimeSlots = () => {
         setIsLoading(true);
         setError(null);
@@ -82,6 +78,7 @@ const TimeSlot = () => {
             })
             .then(response => {
                 setTimeSlots(response.data);
+                setFilteredTimeSlots(response.data);
                 setIsLoading(false);
             })
             .catch(error => {
@@ -91,31 +88,24 @@ const TimeSlot = () => {
             });
     };
 
-    // Modify addTimeSlot to include validation
     const addTimeSlot = (e) => {
         e.preventDefault();
 
-        // Validate day
         const dayValidation = validateDay(day);
-
-        // Validate times
         const timeValidations = validateTime(startTime, endTime);
 
-        // Update validations state
         setValidations({
             day: dayValidation,
             startTime: timeValidations.startTime,
             endTime: timeValidations.endTime
         });
 
-        // Check if all validations pass
         if (!dayValidation.isValid ||
             !timeValidations.startTime.isValid ||
             !timeValidations.endTime.isValid) {
             return;
         }
 
-        // Check for existing time slot conflicts
         const hasConflict = timeSlots.some(slot =>
             slot.day === day &&
             isTimeOverlapping(slot.startTime, slot.endTime, startTime, endTime)
@@ -153,7 +143,6 @@ const TimeSlot = () => {
                 setDay('');
                 setStartTime('');
                 setEndTime('');
-                // Reset validations
                 setValidations({
                     day: { isValid: true, message: '' },
                     startTime: { isValid: true, message: '' },
@@ -170,7 +159,6 @@ const TimeSlot = () => {
             });
     };
 
-    // Delete a time slot
     const deleteTimeSlot = (id) => {
         if (window.confirm('Are you sure you want to delete this time slot?')) {
             setIsLoading(true);
@@ -192,7 +180,6 @@ const TimeSlot = () => {
         }
     };
 
-    // Helper function to check time overlapping
     const isTimeOverlapping = (existingStart, existingEnd, newStart, newEnd) => {
         const [existStartHours, existStartMins] = existingStart.split(':').map(Number);
         const [existEndHours, existEndMins] = existingEnd.split(':').map(Number);
@@ -211,11 +198,20 @@ const TimeSlot = () => {
         );
     };
 
+    const handleSearch = (query) => {
+        setSearchQuery(query);
+        const filtered = timeSlots.filter((slot) =>
+            slot.day.toLowerCase().includes(query.toLowerCase()) ||
+            formatTime(slot.startTime).toLowerCase().includes(query.toLowerCase()) ||
+            formatTime(slot.endTime).toLowerCase().includes(query.toLowerCase())
+        );
+        setFilteredTimeSlots(filtered);
+    };
+
     useEffect(() => {
         fetchTimeSlots();
     }, []);
 
-    // Media query handling for responsive design
     useEffect(() => {
         const handleResize = () => {
             const isMediumScreen = window.innerWidth >= 768;
@@ -237,7 +233,6 @@ const TimeSlot = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Format time for display
     const formatTime = (timeString) => {
         try {
             const [hours, minutes] = timeString.split(':');
@@ -250,7 +245,6 @@ const TimeSlot = () => {
         }
     };
 
-    // Get day badge color
     const getDayColor = (day) => {
         const colors = {
             'Monday': 'primary',
@@ -264,7 +258,6 @@ const TimeSlot = () => {
         return colors[day] || 'primary';
     };
 
-    // Get badge background color
     const getBadgeBackground = (variant) => {
         const colors = {
             'primary': '#0d6efd',
@@ -278,12 +271,10 @@ const TimeSlot = () => {
         return colors[variant] || '#0d6efd';
     };
 
-    // Get badge text color
     const getBadgeTextColor = (variant) => {
         return ['warning'].includes(variant) ? '#212529' : '#fff';
     };
 
-    // Updated styles with a more modern and clean design
     const styles = {
         pageContainer: {
             backgroundColor: '#f8f9fc',
@@ -431,7 +422,6 @@ const TimeSlot = () => {
                         <h1 className="font-bold text-3xl mb-6">TimeSlot Management</h1>
                     </div>
 
-                    {/* Success/Error Messages */}
                     {success && (
                         <div style={styles.successMessage}>
                             Time slot added successfully!
@@ -570,9 +560,19 @@ const TimeSlot = () => {
                             <div style={styles.card}>
                                 <div style={{ ...styles.cardHeader, backgroundColor: '#6c757d', color: 'white' }}>
                                     <h3 style={styles.cardTitle}>Your Schedule</h3>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => handleSearch(e.target.value)}
+                                            placeholder="       Search time slots..."
+                                            className="pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                                        />
+                                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                                    </div>
                                 </div>
                                 <div style={styles.cardBody}>
-                                    {isLoading && !timeSlots.length ? (
+                                    {isLoading && !filteredTimeSlots.length ? (
                                         <div style={styles.loadingSpinner}>
                                             <div style={{
                                                 width: '40px',
@@ -591,9 +591,11 @@ const TimeSlot = () => {
                         `}
                                             </style>
                                         </div>
-                                    ) : timeSlots.length === 0 ? (
+                                    ) : filteredTimeSlots.length === 0 ? (
                                         <div style={styles.emptyMessage}>
-                                            <p style={{ margin: 0 }}>No time slots added yet.</p>
+                                            <p style={{ margin: 0 }}>
+                                                {searchQuery ? "No matching time slots found." : "No time slots added yet."}
+                                            </p>
                                         </div>
                                     ) : (
                                         <div style={styles.tableContainer}>
@@ -607,7 +609,7 @@ const TimeSlot = () => {
                                                 </tr>
                                                 </thead>
                                                 <tbody>
-                                                {timeSlots.map((timeSlot, index) => {
+                                                {filteredTimeSlots.map((timeSlot, index) => {
                                                     const badgeColor = getDayColor(timeSlot.day);
                                                     return (
                                                         <tr
@@ -624,13 +626,13 @@ const TimeSlot = () => {
                                                             }}
                                                         >
                                                             <td style={styles.tableCell}>
-                                  <span style={{
-                                      ...styles.dayBadge,
-                                      backgroundColor: getBadgeBackground(badgeColor),
-                                      color: getBadgeTextColor(badgeColor),
-                                  }}>
-                                    {timeSlot.day}
-                                  </span>
+                                                                <span style={{
+                                                                    ...styles.dayBadge,
+                                                                    backgroundColor: getBadgeBackground(badgeColor),
+                                                                    color: getBadgeTextColor(badgeColor),
+                                                                }}>
+                                                                    {timeSlot.day}
+                                                                </span>
                                                             </td>
                                                             <td style={styles.tableCell}>{formatTime(timeSlot.startTime)}</td>
                                                             <td style={styles.tableCell}>{formatTime(timeSlot.endTime)}</td>
