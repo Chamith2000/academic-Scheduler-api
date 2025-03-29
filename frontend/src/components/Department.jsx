@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { PlusCircle, Edit, Trash2, Search, AlertCircle, CheckCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../Layout/DashboardLayout'; // Adjust path as needed
 import useAuth from "../hooks/useAuth";
 
 // Validation utility functions
 const validateDepartmentCode = (code) => {
-    // Department code should be alphanumeric and between 2-10 characters
     const codeRegex = /^[A-Z0-9]{2,10}$/;
     return {
         isValid: codeRegex.test(code),
@@ -15,7 +14,6 @@ const validateDepartmentCode = (code) => {
 };
 
 const validateDepartmentName = (name) => {
-    // Department name should be 3-100 characters, allow spaces and some special characters
     const nameRegex = /^[A-Za-z0-9\s&().-]{3,100}$/;
     return {
         isValid: nameRegex.test(name),
@@ -38,7 +36,6 @@ const Department = () => {
     const [selectedFacultyName, setSelectedFacultyName] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingDeptId, setEditingDeptId] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -53,9 +50,7 @@ const Department = () => {
     const fetchDepartments = () => {
         setLoading(true);
         axios.get('http://localhost:8080/api/departments', {
-            headers: {
-                Authorization: `Bearer ${auth.accessToken}`,
-            },
+            headers: { Authorization: `Bearer ${auth.accessToken}` },
         })
             .then(response => {
                 setDepartments(response.data);
@@ -71,9 +66,7 @@ const Department = () => {
     // Fetch all faculties
     const fetchFaculties = () => {
         axios.get('http://localhost:8080/api/faculties', {
-            headers: {
-                Authorization: `Bearer ${auth.accessToken}`,
-            },
+            headers: { Authorization: `Bearer ${auth.accessToken}` },
         })
             .then(response => {
                 setFaculties(response.data);
@@ -87,59 +80,29 @@ const Department = () => {
             });
     };
 
-    // Validation form method
     const validateForm = () => {
-        const errors = {
-            deptCode: '',
-            deptName: '',
-            facultyName: ''
-        };
-
-        // Validate department code
+        const errors = { deptCode: '', deptName: '', facultyName: '' };
         const codeValidation = validateDepartmentCode(deptCode);
-        if (!codeValidation.isValid) {
-            errors.deptCode = codeValidation.message;
-        }
-
-        // Validate department name
+        if (!codeValidation.isValid) errors.deptCode = codeValidation.message;
         const nameValidation = validateDepartmentName(deptName);
-        if (!nameValidation.isValid) {
-            errors.deptName = nameValidation.message;
-        }
-
-        // Validate faculty selection
+        if (!nameValidation.isValid) errors.deptName = nameValidation.message;
         const facultyValidation = validateFacultySelection(selectedFacultyName, faculties);
-        if (!facultyValidation.isValid) {
-            errors.facultyName = facultyValidation.message;
-        }
-
+        if (!facultyValidation.isValid) errors.facultyName = facultyValidation.message;
         setValidationErrors(errors);
         return Object.values(errors).every(error => error === '');
     };
 
-    // Add a new department
     const addDepartment = (e) => {
         e.preventDefault();
-
-        // Perform validation before submission
         if (!validateForm()) {
             showToast('Please correct the errors in the form', 'error');
             return;
         }
-
-        const newDepartment = {
-            deptCode: deptCode,
-            deptName: deptName,
-            facultyName: selectedFacultyName
-        };
-
+        const newDepartment = { deptCode, deptName, facultyName: selectedFacultyName };
         axios.post('http://localhost:8080/api/departments', newDepartment, {
-            headers: {
-                Authorization: `Bearer ${auth.accessToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { Authorization: `Bearer ${auth.accessToken}`, 'Content-Type': 'application/json' },
         })
-            .then(response => {
+            .then(() => {
                 showToast('Department added successfully!', 'success');
                 resetForm();
                 toggleModal();
@@ -151,30 +114,17 @@ const Department = () => {
             });
     };
 
-    // Update an existing department
     const updateDepartment = (e) => {
         e.preventDefault();
-
-        // Perform validation before submission
         if (!validateForm()) {
             showToast('Please correct the errors in the form', 'error');
             return;
         }
-
-        const updatedDepartment = {
-            id: editingDeptId,
-            deptCode: deptCode,
-            deptName: deptName,
-            facultyName: selectedFacultyName
-        };
-
+        const updatedDepartment = { id: editingDeptId, deptCode, deptName, facultyName: selectedFacultyName };
         axios.put(`http://localhost:8080/api/departments/${editingDeptId}`, updatedDepartment, {
-            headers: {
-                Authorization: `Bearer ${auth.accessToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { Authorization: `Bearer ${auth.accessToken}`, 'Content-Type': 'application/json' },
         })
-            .then(response => {
+            .then(() => {
                 showToast('Department updated successfully!', 'success');
                 resetForm();
                 toggleModal();
@@ -186,14 +136,11 @@ const Department = () => {
             });
     };
 
-    // Delete a department
     const deleteDepartment = (id) => {
         axios.delete(`http://localhost:8080/api/departments/${id}`, {
-            headers: {
-                Authorization: `Bearer ${auth.accessToken}`,
-            },
+            headers: { Authorization: `Bearer ${auth.accessToken}` },
         })
-            .then(response => {
+            .then(() => {
                 showToast('Department deleted successfully!', 'success');
                 fetchDepartments();
             })
@@ -203,28 +150,19 @@ const Department = () => {
             });
     };
 
-    // Reset form fields
     const resetForm = () => {
         setDeptCode('');
         setDeptName('');
         setSelectedFacultyName(faculties.length > 0 ? faculties[0].facultyName : '');
         setEditingDeptId(null);
-        setValidationErrors({
-            deptCode: '',
-            deptName: '',
-            facultyName: ''
-        });
+        setValidationErrors({ deptCode: '', deptName: '', facultyName: '' });
     };
 
-    // Toggle modal visibility
     const toggleModal = () => {
         setShowModal(!showModal);
-        if (!showModal) {
-            resetForm();
-        }
+        if (!showModal) resetForm();
     };
 
-    // Handle edit button click
     const handleEdit = (dept) => {
         setEditingDeptId(dept.id);
         setDeptCode(dept.deptCode);
@@ -233,9 +171,7 @@ const Department = () => {
         setShowModal(true);
     };
 
-    // Show toast notification
     const showToast = (message, type = 'info') => {
-        // Simple toast implementation
         const toast = document.createElement('div');
         toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
             type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
@@ -251,13 +187,10 @@ const Department = () => {
         document.body.appendChild(toast);
         setTimeout(() => {
             toast.classList.add('opacity-0', 'transition-opacity', 'duration-500');
-            setTimeout(() => {
-                document.body.removeChild(toast);
-            }, 500);
+            setTimeout(() => document.body.removeChild(toast), 500);
         }, 3000);
     };
 
-    // Filter departments based on search term
     const filteredDepartments = departments.filter(dept =>
         dept.deptName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         dept.deptCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -274,16 +207,8 @@ const Department = () => {
             <div className="container mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">Department Management</h1>
-                    <button
-                        onClick={toggleModal}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
-                    >
-                        <PlusCircle size={20} />
-                        <span>Add Department</span>
-                    </button>
                 </div>
 
-                {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="bg-white p-6 rounded-lg shadow-md">
                         <div className="flex justify-between items-start">
@@ -298,7 +223,6 @@ const Department = () => {
                             </div>
                         </div>
                     </div>
-
                     <div className="bg-white p-6 rounded-lg shadow-md">
                         <div className="flex justify-between items-start">
                             <div>
@@ -312,7 +236,6 @@ const Department = () => {
                             </div>
                         </div>
                     </div>
-
                     <div className="bg-white p-6 rounded-lg shadow-md">
                         <div className="flex justify-between items-start">
                             <div>
@@ -331,24 +254,29 @@ const Department = () => {
                     </div>
                 </div>
 
-                {/* Department List */}
                 <div className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="p-6 border-b border-gray-200">
-                        <h2 className="text-xl font-semibold text-gray-800">Department List</h2>
-                    </div>
-
-                    <div className="p-4 border-b border-gray-200 bg-gray-50">
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search size={18} className="text-gray-400" />
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold text-gray-800">Department List</h2>
+                            <div className="flex space-x-2">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        placeholder="     Search departments..."
+                                        className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <button
+                                    onClick={toggleModal}
+                                    className="flex items-center space-x-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                                >
+                                    <PlusCircle size={18} />
+                                    <span>Add Department</span>
+                                </button>
                             </div>
-                            <input
-                                type="text"
-                                placeholder="     Search departments..."
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
                         </div>
                     </div>
 
@@ -388,8 +316,6 @@ const Department = () => {
                                             >
                                                 <Trash2 size={18} />
                                             </button>
-
-                                            {/* Delete confirmation modal */}
                                             <dialog id={`delete-modal-${dept.id}`} className="modal bg-transparent p-0 rounded-lg shadow-lg backdrop:bg-gray-900 backdrop:bg-opacity-50">
                                                 <div className="bg-white p-6 rounded-lg max-w-md w-full">
                                                     <h3 className="text-lg font-bold text-gray-900 mb-4">Confirm Delete</h3>
@@ -427,15 +353,12 @@ const Department = () => {
                                 <AlertCircle size={24} className="text-gray-500" />
                             </div>
                             <h3 className="text-lg font-medium text-gray-800 mb-2">No departments found</h3>
-                            <p className="text-gray-600">
-                                Try adjusting your search or add a new department
-                            </p>
+                            <p className="text-gray-600">Try adjusting your search or add a new department</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Add/Edit Department Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
@@ -443,30 +366,22 @@ const Department = () => {
                             <h3 className="text-lg font-bold text-gray-900">
                                 {editingDeptId ? 'Edit Department' : 'Add New Department'}
                             </h3>
-                            <button
-                                onClick={toggleModal}
-                                className="text-gray-500 hover:text-gray-800"
-                            >
+                            <button onClick={toggleModal} className="text-gray-500 hover:text-gray-800">
                                 <span className="text-2xl">✕</span>
                             </button>
                         </div>
-
                         <form onSubmit={editingDeptId ? updateDepartment : addDepartment} className="p-6">
                             <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-medium mb-2">
-                                    Department Code
-                                </label>
+                                <label className="block text-gray-700 text-sm font-medium mb-2">Department Code</label>
                                 <input
                                     type="text"
                                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                        validationErrors.deptCode
-                                            ? 'border-red-500 focus:ring-red-400'
-                                            : 'border-gray-300 focus:ring-blue-600'
+                                        validationErrors.deptCode ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-600'
                                     }`}
                                     value={deptCode}
                                     onChange={(e) => {
                                         setDeptCode(e.target.value.toUpperCase());
-                                        setValidationErrors(prev => ({...prev, deptCode: ''}));
+                                        setValidationErrors(prev => ({ ...prev, deptCode: '' }));
                                     }}
                                     required
                                 />
@@ -474,22 +389,17 @@ const Department = () => {
                                     <p className="text-red-500 text-xs mt-1">{validationErrors.deptCode}</p>
                                 )}
                             </div>
-
                             <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-medium mb-2">
-                                    Department Name
-                                </label>
+                                <label className="block text-gray-700 text-sm font-medium mb-2">Department Name</label>
                                 <input
                                     type="text"
                                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                        validationErrors.deptName
-                                            ? 'border-red-500 focus:ring-red-400'
-                                            : 'border-gray-300 focus:ring-blue-600'
+                                        validationErrors.deptName ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-600'
                                     }`}
                                     value={deptName}
                                     onChange={(e) => {
                                         setDeptName(e.target.value);
-                                        setValidationErrors(prev => ({...prev, deptName: ''}));
+                                        setValidationErrors(prev => ({ ...prev, deptName: '' }));
                                     }}
                                     required
                                 />
@@ -497,21 +407,16 @@ const Department = () => {
                                     <p className="text-red-500 text-xs mt-1">{validationErrors.deptName}</p>
                                 )}
                             </div>
-
                             <div className="mb-6">
-                                <label className="block text-gray-700 text-sm font-medium mb-2">
-                                    Faculty
-                                </label>
+                                <label className="block text-gray-700 text-sm font-medium mb-2">Faculty</label>
                                 <select
                                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                        validationErrors.facultyName
-                                            ? 'border-red-500 focus:ring-red-400'
-                                            : 'border-gray-300 focus:ring-blue-600'
+                                        validationErrors.facultyName ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-600'
                                     }`}
                                     value={selectedFacultyName}
                                     onChange={(e) => {
                                         setSelectedFacultyName(e.target.value);
-                                        setValidationErrors(prev => ({...prev, facultyName: ''}));
+                                        setValidationErrors(prev => ({ ...prev, facultyName: '' }));
                                     }}
                                     required
                                 >
@@ -526,7 +431,6 @@ const Department = () => {
                                     <p className="text-red-500 text-xs mt-1">{validationErrors.facultyName}</p>
                                 )}
                             </div>
-
                             <div className="flex justify-end space-x-4">
                                 <button
                                     type="button"
