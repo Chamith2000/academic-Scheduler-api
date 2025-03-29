@@ -19,7 +19,7 @@ import Unauthorized from "./pages/unauthorized/Unauthorized";
 import StudentTimetable from "./pages/students/StudentTimetable";
 import InstructorDashboardPage from "./components/InstructorDashboard"
 import InstructorPreferencesPage from "./components/InstructorPreferences";
-// Adjust the path according to your project structure
+import InstructorCourses from "./pages/instructors/InstructorCourses";
 
 
 const ROLES = {
@@ -56,6 +56,7 @@ function App() {
             <Route path="instructor-timetable" element={<InstructorTimetable />} />
             <Route path="instructor-dashboard" element={<InstructorDashboardPage />} />
             <Route path="instructor-preferences" element={<InstructorPreferencesPage />} />
+            <Route path="instructor-courses" element={<InstructorCourses />} />
           </Route>
 
           <Route
