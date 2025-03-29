@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from 'react-bootstrap';
 import { useNavigate } from "react-router-dom";
+import * as XLSX from 'xlsx';
 import {
     CalendarDaysIcon,
     ClockIcon,
     BuildingOffice2Icon,
-    ArrowRightOnRectangleIcon
+    ArrowRightOnRectangleIcon,
+    DocumentArrowDownIcon
 } from "@heroicons/react/24/outline";
 import useAuth from "../../hooks/useAuth";
 import Layout from "../../Layout/InstructorDashboard";
@@ -70,9 +72,6 @@ const InstructorTimetable = () => {
 };
 
 const formatTimetableData = (scheduleData, uniqueTimeslots) => {
-    console.log("Inside format timetable", scheduleData);
-    const objString = JSON.stringify(scheduleData);
-    console.log(objString);
     const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
     // Initialize timetable
@@ -89,12 +88,7 @@ const formatTimetableData = (scheduleData, uniqueTimeslots) => {
 
     // Make sure we have schedule data
     if (scheduleData) {
-        console.log('scheduleData exists');
-
-        // Check if timeSlots property exists on scheduleData
         if (scheduleData.timeSlots) {
-            console.log('scheduleData.timeSlots exists');
-
             scheduleData.timeSlots.forEach((timeSlot, index) => {
                 const day = timeSlot.split(' ')[0];
                 const timeslotStripped = timeSlot.replace(day, '').trim();
@@ -108,18 +102,13 @@ const formatTimetableData = (scheduleData, uniqueTimeslots) => {
                     };
                 }
             });
-        } else {
-            console.log('scheduleData.timeSlots does not exist');
         }
-    } else {
-        console.log('No schedule data');
     }
 
     return timetable;
 };
 
 const Table = ({ data, timeslots }) => {
-    console.log("Inside table component", data);
     // Extract unique timeslots from the timeslots prop
     const uniqueTimeslots = [...new Set(timeslots.map(timeSlot => timeSlot.split(': ')[1]))];
 
@@ -129,13 +118,45 @@ const Table = ({ data, timeslots }) => {
     // As there's only one timetable, we don't need to map over data
     const timetable = formatTimetableData(scheduleData, uniqueTimeslots);
 
+    // Download timetable as Excel file
+    const downloadTimetable = () => {
+        // Prepare data for Excel
+        const excelData = [
+            // Header row
+            ['Time Slot', ...timetable.days],
+            // Data rows
+            ...timetable.timeslots.map((timeslot, index) => [
+                timeslot,
+                ...timetable.days.map(day => {
+                    const slot = timetable.schedule[day][index];
+                    return slot
+                        ? `${slot.courseCode} (${slot.roomName})`
+                        : '-';
+                })
+            ])
+        ];
+
+        // Create workbook and worksheet
+        const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Timetable');
+
+        // Generate and download Excel file
+        XLSX.writeFile(workbook, 'Instructor_Timetable.xlsx');
+    };
+
     return (
         <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-100 border-b">
+            <div className="p-4 bg-gray-100 border-b flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Weekly Schedule</h2>
+                <Button
+                    onClick={downloadTimetable}
+                    className="flex items-center bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600"
+                >
+                    <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+                    Download Timetable
+                </Button>
             </div>
-
-            {data.message}
 
             <div className="overflow-x-auto">
                 <table className="w-full">
