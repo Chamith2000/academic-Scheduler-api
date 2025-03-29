@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import {
     CalendarDaysIcon,
     ClockIcon,
-    ArrowRightOnRectangleIcon
+    ArrowRightOnRectangleIcon,
+    DocumentArrowDownIcon
 } from "@heroicons/react/24/outline";
 import useAuth from "../../hooks/useAuth";
-import Layout from "../../Layout/StudentDashboard"; // Assuming you have a similar layout component
+import Layout from "../../Layout/StudentDashboard";
 import "../../styles/styles.css";
 
 const StudentTimetable = () => {
@@ -104,8 +105,9 @@ const StudentTimetable = () => {
                     <h1 className="text-2xl font-bold">Student Timetable</h1>
                     <button
                         onClick={downloadTimetable}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        className="flex items-center bg-purple-500 text-white px-3 py-2 rounded hover:bg-purple-600"
                     >
+                        <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
                         Download Timetable
                     </button>
                 </div>
