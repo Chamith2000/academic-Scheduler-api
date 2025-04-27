@@ -11,8 +11,8 @@ public class CourseDTO {
     private Long id;
     private String courseCode;
     private String courseName;
-    private int year;
-    private int semester;
+    private Integer year;
+    private Integer semester;
     private String programmeName;
     private String deptName;
     private String instructorName;

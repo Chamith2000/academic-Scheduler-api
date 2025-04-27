@@ -1,20 +1,22 @@
 package com.itpm.AcademicSchedulerApi.service.impl;
 
-
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorPreferencesDto;
 import com.itpm.AcademicSchedulerApi.controller.dto.PreferenceDto;
 import com.itpm.AcademicSchedulerApi.model.Department;
 import com.itpm.AcademicSchedulerApi.model.Instructor;
 import com.itpm.AcademicSchedulerApi.model.TimeSlot;
+import com.itpm.AcademicSchedulerApi.model.User;
 import com.itpm.AcademicSchedulerApi.repository.DepartmentRepository;
 import com.itpm.AcademicSchedulerApi.repository.InstructorRepository;
 import com.itpm.AcademicSchedulerApi.repository.TimeSlotRepository;
+import com.itpm.AcademicSchedulerApi.repository.UserRepository;
 import com.itpm.AcademicSchedulerApi.service.InstructorService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,32 +29,46 @@ public class InstructorServiceImpl implements InstructorService {
     private final InstructorRepository instructorRepository;
     private final DepartmentRepository departmentRepository;
     private final TimeSlotRepository timeSlotRepository;
-
+    private final UserRepository userRepository;
+    private final AuthenticationServiceImpl authenticationService;
 
     public List<InstructorDTO> getAllInstructors() {
-        return instructorRepository.findAll().stream()
-                .map(instructor -> {
-                    InstructorDTO dto = new InstructorDTO();
-                    dto.setId(instructor.getId());
-                    dto.setFirstName(instructor.getFirstName());
-                    dto.setLastName(instructor.getLastName());
-                    dto.setDeptName(instructor.getDepartment().getName()); // Assuming that the department is another entity with its own name
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        return instructorRepository.findAll().stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
+    private InstructorDTO convertToDTO(Instructor instructor) {
+        InstructorDTO dto = new InstructorDTO();
+        dto.setId(instructor.getId());
+        dto.setFirstName(instructor.getFirstName());
+        dto.setLastName(instructor.getLastName());
+        dto.setDeptName(instructor.getDepartment().getName());
+        if (instructor.getUser() != null) {
+            dto.setUsername(instructor.getUser().getUsername());
+            dto.setEmail(instructor.getUser().getEmail());
+        }
+        return dto;
+    }
 
     public Optional<Instructor> getInstructorById(Long id) {
         return instructorRepository.findById(id);
     }
 
+    @Transactional
     public Instructor createInstructor(InstructorDTO instructorDto) {
         System.out.println(instructorDto.toString());
 
+        // Create user account for the instructor
+        User user = authenticationService.registerInstructorUser(
+                instructorDto.getUsername(),
+                instructorDto.getPassword(),
+                instructorDto.getEmail()
+        );
+
+        // Create instructor entity
         Instructor instructor = new Instructor();
         instructor.setFirstName(instructorDto.getFirstName());
         instructor.setLastName(instructorDto.getLastName());
+        instructor.setUser(user); // Link instructor to user
 
         Department department = departmentRepository.findByName(instructorDto.getDeptName())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid department name:" + instructorDto.getDeptName()));
@@ -60,6 +76,7 @@ public class InstructorServiceImpl implements InstructorService {
 
         return instructorRepository.save(instructor);
     }
+
     public InstructorDTO updateInstructor(Long id, InstructorDTO instructorDto) {
         Optional<Instructor> instructorOptional = instructorRepository.findById(id);
         if (instructorOptional.isPresent()) {
@@ -81,8 +98,22 @@ public class InstructorServiceImpl implements InstructorService {
         }
     }
 
+    @Transactional
     public void deleteInstructor(Long id) {
-        instructorRepository.deleteById(id);
+        Instructor instructor = instructorRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + id));
+
+        // Get the user associated with this instructor
+        User user = instructor.getUser();
+
+        // First remove the instructor
+        instructorRepository.delete(instructor);
+
+        // Then remove the associated user if it exists
+        if (user != null) {
+            // You'll need to inject UserRepository
+            userRepository.delete(user);
+        }
     }
 
     public Instructor addPreference(Long instructorId, Long timeslotId) {
@@ -122,7 +153,6 @@ public class InstructorServiceImpl implements InstructorService {
         return instructorDTO;
     }
 
-
     public List<InstructorPreferencesDto> getAllInstructorPreferences() {
         return instructorRepository.findAll().stream()
                 .filter(instructor -> !instructor.getPreferences().isEmpty())
@@ -131,12 +161,10 @@ public class InstructorServiceImpl implements InstructorService {
                     dto.setInstructorName(instructor.getFirstName() + " " + instructor.getLastName());
                     dto.setPreferences(instructor.getPreferences().stream().map(timeSlot -> {
                         PreferenceDto preferenceDto = new PreferenceDto(timeSlot.getDay(), timeSlot.getStartTime());
-                        preferenceDto.setId(timeSlot.getId());  // Assuming TimeSlot has an 'id' property.
+                        preferenceDto.setId(timeSlot.getId());
                         return preferenceDto;
                     }).collect(Collectors.toSet()));
                     return dto;
                 }).collect(Collectors.toList());
     }
-
-
 }
