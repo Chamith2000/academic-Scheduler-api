@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./instructor.css";
 import axios from "axios";
 import DashboardLayout from "../../Layout/DashboardLayout";
@@ -10,10 +10,13 @@ import "react-toastify/dist/ReactToastify.css";
 
 const Instructor = () => {
     const [instructors, setInstructors] = useState([]);
-    const [filteredInstructors, setFilteredInstructors] = useState([]); // New state for filtered instructors
+    const [filteredInstructors, setFilteredInstructors] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [email, setEmail] = useState("");
     const [selectedDeptName, setSelectedDeptName] = useState("");
     const [allPreferences, setAllPreferences] = useState([]);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -22,103 +25,150 @@ const Instructor = () => {
     const [instructorToDelete, setInstructorToDelete] = useState(null);
     const [instructorToEdit, setInstructorToEdit] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState(""); // New state for search query
+    const [searchQuery, setSearchQuery] = useState("");
     const { auth } = useAuth();
 
     // Form validation errors
     const [formErrors, setFormErrors] = useState({
         firstName: "",
         lastName: "",
+        username: "",
+        password: "",
+        email: "",
         department: "",
     });
 
-    // Pagination for the table
+    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [recordsPerPage] = useState(10);
     const indexOfLastRecord = currentPage * recordsPerPage;
     const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-    const currentRecords = filteredInstructors.slice(indexOfFirstRecord, indexOfLastRecord); // Use filteredInstructors
-    const totalPages = Math.ceil(filteredInstructors.length / recordsPerPage); // Use filteredInstructors
+    const currentRecords = filteredInstructors.slice(indexOfFirstRecord, indexOfLastRecord);
+    const totalPages = Math.ceil(filteredInstructors.length / recordsPerPage);
     const isFirstPage = currentPage === 1;
     const isLastPage = currentPage === totalPages;
 
-    // Real-time validation functions
+    // Validation functions
     const validateFirstName = (value) => {
-        if (!value.trim()) return "First Name is required";
-        if (value.trim().length < 2) return "First Name must be at least 2 characters long";
-        if (!/^[A-Za-z\s'-]+$/.test(value.trim())) return "First Name can only contain letters, spaces, hyphens, and apostrophes";
+        if (value == null || value === "") return "First Name is required";
+        const trimmedValue = value.trim();
+        if (trimmedValue.length < 2) return "First Name must be at least 2 characters long";
+        if (!/^[A-Za-z\s'-]+$/.test(trimmedValue)) return "First Name can only contain letters, spaces, hyphens, and apostrophes";
         return "";
     };
 
     const validateLastName = (value) => {
-        if (!value.trim()) return "Last Name is required";
-        if (value.trim().length < 2) return "Last Name must be at least 2 characters long";
-        if (!/^[A-Za-z\s'-]+$/.test(value.trim())) return "Last Name can only contain letters, spaces, hyphens, and apostrophes";
+        if (value == null || value === "") return "Last Name is required";
+        const trimmedValue = value.trim();
+        if (trimmedValue.length < 2) return "Last Name must be at least 2 characters long";
+        if (!/^[A-Za-z\s'-]+$/.test(trimmedValue)) return "Last Name can only contain letters, spaces, hyphens, and apostrophes";
+        return "";
+    };
+
+    const validateUsername = (value) => {
+        if (value == null || value === "") return "Username is required";
+        const trimmedValue = value.trim();
+        if (!trimmedValue) return "Username is required";
+        if (trimmedValue.length < 4) return "Username must be at least 4 characters long";
+        return "";
+    };
+
+    const validatePassword = (value, isEdit = false) => {
+        if (!isEdit && (value == null || value === "")) return "Password is required";
+        if (value && value.length < 6) return "Password must be at least 6 characters long";
+        return "";
+    };
+
+    const validateEmail = (value) => {
+        if (value == null || value === "") return "Email is required";
+        const trimmedValue = value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue)) return "Invalid email format";
         return "";
     };
 
     const validateDepartment = (value) => {
-        if (!value) return "Department is required";
+        if (value == null || value === "") return "Department is required";
         return "";
     };
 
-    // Real-time validation handlers
+    // Change handlers
     const handleFirstNameChange = (e) => {
         const value = e.target.value;
         setFirstName(value);
-        setFormErrors(prev => ({ ...prev, firstName: validateFirstName(value) }));
+        setFormErrors((prev) => ({ ...prev, firstName: validateFirstName(value) }));
     };
 
     const handleLastNameChange = (e) => {
         const value = e.target.value;
         setLastName(value);
-        setFormErrors(prev => ({ ...prev, lastName: validateLastName(value) }));
+        setFormErrors((prev) => ({ ...prev, lastName: validateLastName(value) }));
+    };
+
+    const handleUsernameChange = (e) => {
+        const value = e.target.value;
+        setUsername(value);
+        setFormErrors((prev) => ({ ...prev, username: validateUsername(value) }));
+    };
+
+    const handlePasswordChange = (e) => {
+        const value = e.target.value;
+        setPassword(value);
+        setFormErrors((prev) => ({ ...prev, password: validatePassword(value, showEditModal) }));
+    };
+
+    const handleEmailChange = (e) => {
+        const value = e.target.value;
+        setEmail(value);
+        setFormErrors((prev) => ({ ...prev, email: validateEmail(value) }));
     };
 
     const handleDeptChange = (e) => {
         const value = e.target.value;
         setSelectedDeptName(value);
-        setFormErrors(prev => ({ ...prev, department: validateDepartment(value) }));
+        setFormErrors((prev) => ({ ...prev, department: validateDepartment(value) }));
     };
 
-    // Search handler
     const handleSearchChange = (e) => {
         const query = e.target.value.toLowerCase();
         setSearchQuery(query);
-        setCurrentPage(1); // Reset to first page on search
+        setCurrentPage(1);
         const filtered = instructors.filter(
             (instructor) =>
-                instructor.firstName.toLowerCase().includes(query) ||
-                instructor.lastName.toLowerCase().includes(query) ||
-                instructor.deptName.toLowerCase().includes(query)
+                (instructor.firstName?.toLowerCase().includes(query) || "") ||
+                (instructor.lastName?.toLowerCase().includes(query) || "") ||
+                (instructor.deptName?.toLowerCase().includes(query) || "") ||
+                (instructor.username?.toLowerCase().includes(query) || "") ||
+                (instructor.email?.toLowerCase().includes(query) || "")
         );
         setFilteredInstructors(filtered);
     };
 
-    // Form submission validation
-    const validateInstructorForm = () => {
+    const validateInstructorForm = (isEdit = false) => {
         const errors = {
             firstName: validateFirstName(firstName),
             lastName: validateLastName(lastName),
-            department: validateDepartment(selectedDeptName)
+            username: validateUsername(username),
+            password: validatePassword(password, isEdit),
+            email: validateEmail(email),
+            department: validateDepartment(selectedDeptName),
         };
-        setFormErrors(prev => ({ ...prev, ...errors }));
-        return Object.values(errors).every(error => !error);
+        setFormErrors((prev) => ({ ...prev, ...errors }));
+        return Object.values(errors).every((error) => !error);
     };
 
-    function handleNextPage() {
+    const handleNextPage = () => {
         if (!isLastPage) {
             setCurrentPage((prev) => prev + 1);
         }
-    }
+    };
 
-    function handlePreviousPage() {
+    const handlePreviousPage = () => {
         if (!isFirstPage) {
             setCurrentPage((prev) => prev - 1);
         }
-    }
+    };
 
-    const fetchInstructors = async () => {
+    const fetchInstructors = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await axios.get("http://localhost:8080/api/instructors", {
@@ -126,17 +176,18 @@ const Instructor = () => {
                     Authorization: `Bearer ${auth.accessToken}`,
                 },
             });
+            console.log("Instructors data:", response.data); // Debug the response
             setInstructors(response.data);
-            setFilteredInstructors(response.data); // Initialize filteredInstructors with full list
+            setFilteredInstructors(response.data);
         } catch (error) {
-            console.error(`Error fetching instructors: ${error}`);
-            toast.error("Failed to fetch instructors");
+            console.error("Error fetching instructors:", error);
+            toast.error(error.response?.data?.message || "Failed to fetch instructors");
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [auth.accessToken]);
 
-    const fetchAllPreferences = async () => {
+    const fetchAllPreferences = useCallback(async () => {
         try {
             const response = await axios.get("http://localhost:8080/api/instructors/preferences", {
                 headers: {
@@ -145,12 +196,12 @@ const Instructor = () => {
             });
             setAllPreferences(response.data);
         } catch (error) {
-            console.error(`Error fetching preferences: ${error}`);
-            toast.error("Failed to fetch preferences");
+            console.error("Error fetching preferences:", error);
+            toast.error(error.response?.data?.message || "Failed to fetch preferences");
         }
-    };
+    }, [auth.accessToken]);
 
-    const fetchDepartments = async () => {
+    const fetchDepartments = useCallback(async () => {
         try {
             const response = await axios.get("http://localhost:8080/api/departments", {
                 headers: {
@@ -162,10 +213,10 @@ const Instructor = () => {
                 setSelectedDeptName(response.data[0].deptName);
             }
         } catch (error) {
-            console.error(`Error fetching departments: ${error}`);
-            toast.error("Failed to fetch departments");
+            console.error("Error fetching departments:", error);
+            toast.error(error.response?.data?.message || "Failed to fetch departments");
         }
-    };
+    }, [auth.accessToken, selectedDeptName]);
 
     const addInstructor = async () => {
         if (!validateInstructorForm()) {
@@ -173,14 +224,13 @@ const Instructor = () => {
             return;
         }
 
-        let newDeptName = selectedDeptName;
-        if (selectedDeptName === "") {
-            newDeptName = departments.length > 0 ? departments[0].deptName : "";
-        }
         const newInstructor = {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
-            deptName: newDeptName,
+            deptName: selectedDeptName,
+            username: username.trim(),
+            password: password.trim(),
+            email: email.trim(),
         };
         try {
             await axios.post("http://localhost:8080/api/instructors", newInstructor, {
@@ -194,13 +244,13 @@ const Instructor = () => {
             resetForm();
             toast.success("Instructor added successfully!");
         } catch (error) {
-            console.error(`Error adding instructor: ${error}`);
+            console.error("Error adding instructor:", error);
             toast.error(error.response?.data?.message || "Failed to add instructor");
         }
     };
 
     const editInstructor = async () => {
-        if (!validateInstructorForm()) {
+        if (!validateInstructorForm(true)) {
             toast.error("Please fix all validation errors before submitting.");
             return;
         }
@@ -212,6 +262,9 @@ const Instructor = () => {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             deptName: selectedDeptName,
+            username: username.trim(),
+            password: password.trim() || undefined,
+            email: email.trim(),
         };
 
         try {
@@ -225,9 +278,9 @@ const Instructor = () => {
             setShowEditModal(false);
             setInstructorToEdit(null);
             resetForm();
-            toast.success("Instructor updated successfully!");
+            toast.success("Instructor updated successfully!"); // Fixed typo and added semicolon
         } catch (error) {
-            console.error(`Error updating instructor: ${error}`);
+            console.error("Error updating instructor:", error);
             toast.error(error.response?.data?.message || "Failed to update instructor");
         }
     };
@@ -235,32 +288,58 @@ const Instructor = () => {
     const resetForm = () => {
         setFirstName("");
         setLastName("");
+        setUsername("");
+        setPassword("");
+        setEmail("");
         setSelectedDeptName(departments.length > 0 ? departments[0].deptName : "");
         setFormErrors({
             firstName: "",
             lastName: "",
+            username: "",
+            password: "",
+            email: "",
             department: "",
         });
     };
 
     useEffect(() => {
         const fetchData = async () => {
-            await fetchInstructors();
-            await fetchDepartments();
-            await fetchAllPreferences();
+            setIsLoading(true);
+            try {
+                await Promise.all([fetchInstructors(), fetchDepartments(), fetchAllPreferences()]);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                toast.error("Failed to load data. Please try again.");
+            } finally {
+                setIsLoading(false);
+            }
         };
         fetchData();
-    }, []);
+    }, [fetchInstructors, fetchDepartments, fetchAllPreferences]);
 
     useEffect(() => {
         if (instructorToEdit) {
-            setFirstName(instructorToEdit.firstName);
-            setLastName(instructorToEdit.lastName);
-            setSelectedDeptName(instructorToEdit.deptName);
+            const safeInstructor = {
+                firstName: instructorToEdit.firstName || "",
+                lastName: instructorToEdit.lastName || "",
+                username: instructorToEdit.username || "",
+                email: instructorToEdit.email || "",
+                deptName: instructorToEdit.deptName || "",
+            };
+
+            setFirstName(safeInstructor.firstName);
+            setLastName(safeInstructor.lastName);
+            setUsername(safeInstructor.username);
+            setEmail(safeInstructor.email);
+            setPassword("");
+            setSelectedDeptName(safeInstructor.deptName);
             setFormErrors({
-                firstName: validateFirstName(instructorToEdit.firstName),
-                lastName: validateLastName(instructorToEdit.lastName),
-                department: validateDepartment(instructorToEdit.deptName),
+                firstName: validateFirstName(safeInstructor.firstName),
+                lastName: validateLastName(safeInstructor.lastName),
+                username: validateUsername(safeInstructor.username),
+                password: "",
+                email: validateEmail(safeInstructor.email),
+                department: validateDepartment(safeInstructor.deptName),
             });
         }
     }, [instructorToEdit]);
@@ -278,15 +357,15 @@ const Instructor = () => {
             setInstructorToDelete(null);
             toast.success("Instructor deleted successfully!");
         } catch (error) {
-            console.error(`Error deleting instructor: ${error}`);
-            toast.error("Error deleting instructor. Please try again.");
+            console.error("Error deleting instructor:", error);
+            toast.error(error.response?.data?.message || "Error deleting instructor. Please try again.");
         }
     };
 
-    const getInstructorPreferences = (instructorId) => {
-        const instructorIdStr = String(instructorId);
+    const getInstructorPreferences = (instructor) => {
+        const instructorName = `${instructor.firstName} ${instructor.lastName}`;
         const instructorPrefs = allPreferences.find(
-            (pref) => String(pref.instructorName) === instructorIdStr
+            (pref) => pref.instructorName === instructorName
         );
         return instructorPrefs ? instructorPrefs.preferences : [];
     };
@@ -356,6 +435,66 @@ const Instructor = () => {
                                     <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
                                 )}
                             </div>
+                            <div className="mb-4">
+                                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Username
+                                </label>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    value={username}
+                                    onChange={handleUsernameChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.username
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.username && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
+                                )}
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Password
+                                </label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    value={password}
+                                    onChange={handlePasswordChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.password
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.password && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>
+                                )}
+                            </div>
+                            <div className="mb-4">
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    value={email}
+                                    onChange={handleEmailChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.email
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.email && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                                )}
+                            </div>
                             <div className="mb-6">
                                 <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
                                     Department
@@ -388,7 +527,10 @@ const Instructor = () => {
                                 >
                                     Cancel
                                 </button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
                                     Add Instructor
                                 </button>
                             </div>
@@ -412,7 +554,10 @@ const Instructor = () => {
                             }}
                         >
                             <div className="mb-4">
-                                <label htmlFor="editFirstName" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label
+                                    htmlFor="editFirstName"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
                                     First Name
                                 </label>
                                 <input
@@ -432,7 +577,10 @@ const Instructor = () => {
                                 )}
                             </div>
                             <div className="mb-4">
-                                <label htmlFor="editLastName" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label
+                                    htmlFor="editLastName"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
                                     Last Name
                                 </label>
                                 <input
@@ -451,8 +599,79 @@ const Instructor = () => {
                                     <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
                                 )}
                             </div>
+                            <div className="mb-4">
+                                <label
+                                    htmlFor="editUsername"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Username
+                                </label>
+                                <input
+                                    type="text"
+                                    id="editUsername"
+                                    value={username}
+                                    onChange={handleUsernameChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.username
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.username && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
+                                )}
+                            </div>
+                            <div className="mb-4">
+                                <label
+                                    htmlFor="editPassword"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Password (Leave blank to keep unchanged)
+                                </label>
+                                <input
+                                    type="password"
+                                    id="editPassword"
+                                    value={password}
+                                    onChange={handlePasswordChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.password
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                />
+                                {formErrors.password && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>
+                                )}
+                            </div>
+                            <div className="mb-4">
+                                <label
+                                    htmlFor="editEmail"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Email
+                                </label>
+                                <input
+                                    type="email"
+                                    id="editEmail"
+                                    value={email}
+                                    onChange={handleEmailChange}
+                                    className={`w-full px-4 py-2 border ${
+                                        formErrors.email
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : "border-gray-300 focus:ring-blue-500"
+                                    } rounded-md focus:outline-none focus:ring-2`}
+                                    required
+                                />
+                                {formErrors.email && (
+                                    <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                                )}
+                            </div>
                             <div className="mb-6">
-                                <label htmlFor="editDepartment" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label
+                                    htmlFor="editDepartment"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
                                     Department
                                 </label>
                                 <select
@@ -487,7 +706,10 @@ const Instructor = () => {
                                 >
                                     Cancel
                                 </button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                >
                                     Save Changes
                                 </button>
                             </div>
@@ -501,7 +723,13 @@ const Instructor = () => {
     return (
         <DashboardLayout>
             <div className="instructor-container p-6 bg-gray-50 min-h-screen">
-                <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
+                <ToastContainer
+                    position="top-right"
+                    autoClose={3000}
+                    hideProgressBar={false}
+                    closeOnClick
+                    pauseOnHover
+                />
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-gray-800">Instructors Management</h1>
                     <div className="flex space-x-3">
@@ -560,13 +788,15 @@ const Instructor = () => {
                                     type="text"
                                     value={searchQuery}
                                     onChange={handleSearchChange}
-                                    placeholder=  "      Search instructors..."
+                                    placeholder="    Search instructors..."
                                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                                 <BiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             </div>
                             <div className="text-sm text-gray-500">
-                                Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, filteredInstructors.length)} of {filteredInstructors.length} entries
+                                Showing {indexOfFirstRecord + 1} to{" "}
+                                {Math.min(indexOfLastRecord, filteredInstructors.length)} of{" "}
+                                {filteredInstructors.length} entries
                             </div>
                         </div>
                     </div>
@@ -581,19 +811,46 @@ const Instructor = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                     <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
                                             First Name
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
                                             Last Name
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
+                                            Username
+                                        </th>
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
+                                            Email
+                                        </th>
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
                                             Department
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
                                             Preferences
                                         </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th
+                                            scope="col"
+                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        >
                                             Actions
                                         </th>
                                     </tr>
@@ -601,28 +858,45 @@ const Instructor = () => {
                                     <tbody className="bg-white divide-y divide-gray-200">
                                     {currentRecords.length > 0 ? (
                                         currentRecords.map((instructor, index) => {
-                                            const preferences = getInstructorPreferences(instructor.id);
+                                            const preferences = getInstructorPreferences(instructor);
                                             return (
-                                                <tr key={instructor.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                                <tr
+                                                    key={instructor.id}
+                                                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                                                >
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                         {instructor.firstName}
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{instructor.lastName}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{instructor.deptName}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {instructor.lastName}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {instructor.username}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {instructor.email}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {instructor.deptName}
+                                                    </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                         <div className="flex flex-wrap gap-1 max-w-md">
                                                             {preferences && preferences.length > 0 ? (
                                                                 preferences.map((pref) => (
                                                                     <span
                                                                         key={pref.id}
-                                                                        className={`px-2 py-1 rounded-full text-xs ${getTimeSlotColor(pref.day)}`}
-                                                                        title={`${pref.day} ${pref.startTime}-${pref.endTime}`}
+                                                                        className={`px-2 py-1 rounded-full text-xs ${getTimeSlotColor(
+                                                                            pref.day
+                                                                        )}`}
+                                                                        title={`${pref.day} ${pref.startTime}`}
                                                                     >
-                                                                        {pref.day.slice(0, 3)} {pref.startTime}
-                                                                    </span>
+                                      {pref.day.slice(0, 3)} {pref.startTime}
+                                    </span>
                                                                 ))
                                                             ) : (
-                                                                <span className="text-gray-400 italic">No preferences</span>
+                                                                <span className="text-gray-400 italic">
+                                    No preferences
+                                  </span>
                                                             )}
                                                         </div>
                                                     </td>
@@ -655,7 +929,10 @@ const Instructor = () => {
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                                            <td
+                                                colSpan="7"
+                                                className="px-6 py-4 text-center text-sm text-gray-500"
+                                            >
                                                 No instructors found
                                             </td>
                                         </tr>
@@ -672,7 +949,9 @@ const Instructor = () => {
                                         onClick={handlePreviousPage}
                                         disabled={isFirstPage}
                                         className={`px-4 py-2 rounded ${
-                                            isFirstPage ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+                                            isFirstPage
+                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                                : "bg-blue-600 text-white hover:bg-blue-700"
                                         }`}
                                     >
                                         Previous
@@ -681,7 +960,9 @@ const Instructor = () => {
                                         onClick={handleNextPage}
                                         disabled={isLastPage}
                                         className={`px-4 py-2 rounded ${
-                                            isLastPage ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+                                            isLastPage
+                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                                : "bg-blue-600 text-white hover:bg-blue-700"
                                         }`}
                                     >
                                         Next
@@ -691,42 +972,45 @@ const Instructor = () => {
                         </>
                     )}
                 </div>
-            </div>
 
-            {renderAddInstructorModal()}
-            {renderEditInstructorModal()}
+                {renderAddInstructorModal()}
+                {renderEditInstructorModal()}
 
-            {showDeleteModal && instructorToDelete && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <div className="flex items-center justify-center bg-red-100 h-12 w-12 rounded-full mx-auto mb-4">
-                            <BiTrash className="text-red-600 text-xl" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900 text-center mb-2">Delete Instructor</h3>
-                        <p className="text-sm text-gray-600 text-center mb-6">
-                            Warning: This will remove the instructor and set their courses to have no instructor.
-                            Are you sure you want to delete {instructorToDelete.firstName} {instructorToDelete.lastName}?
-                        </p>
-                        <div className="flex justify-center space-x-3">
-                            <button
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setInstructorToDelete(null);
-                                }}
-                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleDelete(instructorToDelete.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                            >
+                {showDeleteModal && instructorToDelete && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+                            <div className="flex items-center justify-center bg-red-100 h-12 w-12 rounded-full mx-auto mb-4">
+                                <BiTrash className="text-red-600 text-xl" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 text-center mb-2">
                                 Delete Instructor
-                            </button>
+                            </h3>
+                            <p className="text-sm text-gray-600 text-center mb-6">
+                                Warning: This will remove the instructor and set their courses to have no instructor.
+                                Are you sure you want to delete {instructorToDelete.firstName}{" "}
+                                {instructorToDelete.lastName}?
+                            </p>
+                            <div className="flex justify-center space-x-3">
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setInstructorToDelete(null);
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(instructorToDelete.id)}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                >
+                                    Delete Instructor
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </DashboardLayout>
     );
 };

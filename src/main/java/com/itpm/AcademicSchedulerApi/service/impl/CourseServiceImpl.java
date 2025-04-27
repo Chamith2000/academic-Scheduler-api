@@ -104,22 +104,34 @@ public class CourseServiceImpl implements CourseService {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Course", "id", id));
 
-        course.setCourseCode(courseDTO.getCourseCode());
-        course.setCourseName(courseDTO.getCourseName());
-        course.setYear(courseDTO.getYear());
-        course.setSemester(courseDTO.getSemester());
-
-        Department department = departmentRepository.findByName(courseDTO.getDeptName())
-                .orElseThrow(() -> new ResourceNotFoundException("Department", "name", courseDTO.getDeptName()));
-        course.setDepartment(department);
-
-        Instructor instructor = instructorRepository.findByFirstName(courseDTO.getInstructorName())
-                .orElseThrow(() -> new ResourceNotFoundException("Instructor", "name", courseDTO.getInstructorName()));
-        course.setInstructor(instructor);
-
-        Program programme = programRepository.findByName(courseDTO.getProgrammeName())
-                .orElseThrow(() -> new ResourceNotFoundException("Programme", "name", courseDTO.getProgrammeName()));
-        course.setProgram(programme);
+        // Update only the fields that are provided (non-null) in the CourseDTO
+        if (courseDTO.getCourseCode() != null) {
+            course.setCourseCode(courseDTO.getCourseCode());
+        }
+        if (courseDTO.getCourseName() != null) {
+            course.setCourseName(courseDTO.getCourseName());
+        }
+        if (courseDTO.getYear() != null) {
+            course.setYear(courseDTO.getYear());
+        }
+        if (courseDTO.getSemester() != null) {
+            course.setSemester(courseDTO.getSemester());
+        }
+        if (courseDTO.getProgrammeName() != null) {
+            Program program = programRepository.findByName(courseDTO.getProgrammeName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Program", "name", courseDTO.getProgrammeName()));
+            course.setProgram(program);
+        }
+        if (courseDTO.getDeptName() != null) {
+            Department department = departmentRepository.findByName(courseDTO.getDeptName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", "name", courseDTO.getDeptName()));
+            course.setDepartment(department);
+        }
+        if (courseDTO.getInstructorName() != null) {
+            Instructor instructor = instructorRepository.findByFirstName(courseDTO.getInstructorName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Instructor", "name", courseDTO.getInstructorName()));
+            course.setInstructor(instructor);
+        }
 
         Course updatedCourse = courseRepository.save(course);
         return convertToDTO(updatedCourse);
@@ -136,18 +148,23 @@ public class CourseServiceImpl implements CourseService {
             throw new ResourceNotFoundException("Course", "id", id);
         }
 
-        // Delete sections associated with the course first to avoid constraint violations
+        // Delete associated sections first
         List<Section> sections = sectionRepository.findByCourseId(id);
         if (!sections.isEmpty()) {
             sectionRepository.deleteAll(sections);
+            // Verify sections are deleted to avoid constraint violation
+            List<Section> remainingSections = sectionRepository.findByCourseId(id);
+            if (!remainingSections.isEmpty()) {
+                throw new OperationFailedException("Failed to delete all sections for course with ID: " + id);
+            }
         }
 
         // Now delete the course
         courseRepository.deleteById(id);
 
-        // Verify deletion
+        // Verify course deletion
         if (courseRepository.existsById(id)) {
-            throw new OperationFailedException("Failed to delete course with id: " + id);
+            throw new OperationFailedException("Failed to delete course with ID: " + id);
         }
     }
 
