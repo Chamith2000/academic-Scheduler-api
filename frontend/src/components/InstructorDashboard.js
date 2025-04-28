@@ -22,15 +22,13 @@ const InstructorDashboardPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [isExpanded, setIsExpanded] = useState(false);
-    const [instructors, setInstructors] = useState([]);
+    const [instructor, setInstructor] = useState(null); // Changed from instructors array to single instructor
     const [timeslots, setTimeslots] = useState([]);
-    const [selectedInstructor, setSelectedInstructor] = useState("");
     const [selectedTimeslot, setSelectedTimeslot] = useState("");
     const [showPreferenceModal, setShowPreferenceModal] = useState(false);
 
     // Form validation errors
     const [formErrors, setFormErrors] = useState({
-        instructorSelect: "",
         timeslotSelect: ""
     });
 
@@ -43,6 +41,13 @@ const InstructorDashboardPage = () => {
             }
         }
     }, [auth, setAuth]);
+
+    // Fetch instructor data after auth is loaded
+    useEffect(() => {
+        if (auth?.id) {
+            fetchInstructor();
+        }
+    }, [auth]);
 
     const handleLogout = () => {
         setAuth(null);
@@ -105,7 +110,6 @@ const InstructorDashboardPage = () => {
             assignmentsPending: 32,
             upcomingClasses: 3
         });
-        fetchInstructors();
         fetchTimeSlots();
     }, []);
 
@@ -116,14 +120,7 @@ const InstructorDashboardPage = () => {
         { course: 'Database Systems', action: 'Updated Syllabus', time: 'Last week' }
     ];
 
-    const validateInstructorSelect = (value) => (!value ? "Please select an instructor" : "");
     const validateTimeslotSelect = (value) => (!value ? "Please select a time slot" : "");
-
-    const handleInstructorSelectChange = (e) => {
-        const value = e.target.value;
-        setSelectedInstructor(value);
-        setFormErrors(prev => ({ ...prev, instructorSelect: validateInstructorSelect(value) }));
-    };
 
     const handleTimeslotSelectChange = (e) => {
         const value = e.target.value;
@@ -133,22 +130,21 @@ const InstructorDashboardPage = () => {
 
     const validatePreferenceForm = () => {
         const errors = {
-            instructorSelect: validateInstructorSelect(selectedInstructor),
             timeslotSelect: validateTimeslotSelect(selectedTimeslot)
         };
         setFormErrors(prev => ({ ...prev, ...errors }));
         return Object.values(errors).every(error => !error);
     };
 
-    const fetchInstructors = async () => {
+    const fetchInstructor = async () => {
         try {
-            const response = await axios.get("http://localhost:8080/api/instructors", {
+            const response = await axios.get(`http://localhost:8080/api/instructors/${auth.id}`, {
                 headers: { Authorization: `Bearer ${auth?.accessToken}` },
             });
-            setInstructors(response.data);
+            setInstructor(response.data);
         } catch (error) {
-            console.error(`Error fetching instructors: ${error}`);
-            toast.error("Failed to fetch instructors");
+            console.error(`Error fetching instructor: ${error}`);
+            toast.error("Failed to fetch instructor details");
         }
     };
 
@@ -170,7 +166,12 @@ const InstructorDashboardPage = () => {
             return;
         }
 
-        const instructorId = selectedInstructor;
+        if (!auth?.id) {
+            toast.error("User information is missing. Please log in again.");
+            return;
+        }
+
+        const instructorId = auth.id;
         const timeslotObj = JSON.parse(selectedTimeslot);
         const preferenceId = timeslotObj.id;
         const postData = { timeslot: timeslotObj, instructorId };
@@ -189,7 +190,6 @@ const InstructorDashboardPage = () => {
             );
             if (response.ok) {
                 setShowPreferenceModal(false);
-                setSelectedInstructor("");
                 setSelectedTimeslot("");
                 toast.success("Preference added successfully!");
             } else {
@@ -209,26 +209,6 @@ const InstructorDashboardPage = () => {
                 <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
                     <h2 className="text-xl font-semibold mb-4 text-gray-800">Add Time Preference</h2>
                     <form onSubmit={(e) => { e.preventDefault(); handleAddPreference(); }}>
-                        <div className="mb-4">
-                            <label htmlFor="instructorSelect" className="block text-sm font-medium text-gray-700 mb-1">
-                                Select Instructor
-                            </label>
-                            <select
-                                id="instructorSelect"
-                                value={selectedInstructor}
-                                onChange={handleInstructorSelectChange}
-                                className={`w-full px-4 py-2 border ${formErrors.instructorSelect ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"} rounded-md focus:outline-none focus:ring-2`}
-                                required
-                            >
-                                <option value="">Select an instructor</option>
-                                {instructors.map((instructor) => (
-                                    <option key={instructor.id} value={instructor.id}>
-                                        {instructor.firstName} {instructor.lastName} - {instructor.deptName}
-                                    </option>
-                                ))}
-                            </select>
-                            {formErrors.instructorSelect && <p className="text-red-500 text-xs mt-1">{formErrors.instructorSelect}</p>}
-                        </div>
                         <div className="mb-6">
                             <label htmlFor="timeslotSelect" className="block text-sm font-medium text-gray-700 mb-1">
                                 Select Time Slot
@@ -254,7 +234,6 @@ const InstructorDashboardPage = () => {
                                 type="button"
                                 onClick={() => {
                                     setShowPreferenceModal(false);
-                                    setSelectedInstructor("");
                                     setSelectedTimeslot("");
                                 }}
                                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
@@ -264,7 +243,7 @@ const InstructorDashboardPage = () => {
                             <button
                                 type="submit"
                                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                disabled={!selectedInstructor || !selectedTimeslot}
+                                disabled={!selectedTimeslot}
                             >
                                 Add Preference
                             </button>
@@ -307,10 +286,10 @@ const InstructorDashboardPage = () => {
                             {isExpanded && (
                                 <div className="ml-4">
                                     <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                        {auth.name || "Instructor"}
+                                        {auth.name || instructor?.firstName + " " + instructor?.lastName || "Instructor"}
                                     </h3>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {auth.department || "Department"}
+                                        {instructor?.deptName || auth.department || "Department"}
                                     </p>
                                 </div>
                             )}
@@ -357,7 +336,7 @@ const InstructorDashboardPage = () => {
                                     Instructor Dashboard
                                 </h1>
                                 <p className="text-gray-500 dark:text-gray-400">
-                                    Welcome back, {auth?.name || auth?.username || 'Instructor'}!
+                                    Welcome back, {instructor?.firstName || auth?.name || auth?.username || 'Instructor'}!
                                 </p>
                             </div>
                             <div className="flex space-x-3">

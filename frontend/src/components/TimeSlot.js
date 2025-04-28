@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Button, Form, Container, Row, Col, Card, Table, Badge, Spinner } from 'react-bootstrap';
 import useAuth from "../hooks/useAuth";
 import DashboardLayout from "../Layout/DashboardLayout";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/solid"; // Import the MagnifyingGlassIcon
+import { MagnifyingGlassIcon } from "@heroicons/react/24/solid";
 
 const TimeSlot = () => {
     const [timeSlots, setTimeSlots] = useState([]);
@@ -15,6 +15,7 @@ const TimeSlot = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [editingId, setEditingId] = useState(null);
 
     const { auth } = useAuth();
 
@@ -88,7 +89,7 @@ const TimeSlot = () => {
             });
     };
 
-    const addTimeSlot = (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
 
         const dayValidation = validateDay(day);
@@ -107,6 +108,7 @@ const TimeSlot = () => {
         }
 
         const hasConflict = timeSlots.some(slot =>
+            slot.id !== editingId &&
             slot.day === day &&
             isTimeOverlapping(slot.startTime, slot.endTime, startTime, endTime)
         );
@@ -121,42 +123,56 @@ const TimeSlot = () => {
             return;
         }
 
+        const timeSlotData = { day, startTime, endTime };
         setIsLoading(true);
         setError(null);
 
-        const newTimeSlot = {
-            day,
-            startTime,
-            endTime,
-        };
-
-        axios
-            .post('http://localhost:8080/api/timeslots', newTimeSlot, {
+        const request = editingId
+            ? axios.put(`http://localhost:8080/api/timeslots/${editingId}`, timeSlotData, {
                 headers: {
                     Authorization: `Bearer ${auth.accessToken}`,
                     'Content-Type': 'application/json',
                 },
             })
+            : axios.post('http://localhost:8080/api/timeslots', timeSlotData, {
+                headers: {
+                    Authorization: `Bearer ${auth.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+        request
             .then(() => {
                 setSuccess(true);
-                setError(null);
-                setDay('');
-                setStartTime('');
-                setEndTime('');
-                setValidations({
-                    day: { isValid: true, message: '' },
-                    startTime: { isValid: true, message: '' },
-                    endTime: { isValid: true, message: '' }
-                });
+                resetForm();
                 fetchTimeSlots();
-                setIsLoading(false);
                 setTimeout(() => setSuccess(false), 3000);
             })
             .catch(error => {
                 console.error(`Error: ${error}`);
-                setError('Failed to add time slot. Please try again.');
+                setError(`Failed to ${editingId ? 'update' : 'add'} time slot. Please try again.`);
                 setIsLoading(false);
             });
+    };
+
+    const resetForm = () => {
+        setDay('');
+        setStartTime('');
+        setEndTime('');
+        setEditingId(null);
+        setValidations({
+            day: { isValid: true, message: '' },
+            startTime: { isValid: true, message: '' },
+            endTime: { isValid: true, message: '' }
+        });
+        setIsLoading(false);
+    };
+
+    const editTimeSlot = (timeSlot) => {
+        setEditingId(timeSlot.id);
+        setDay(timeSlot.day);
+        setStartTime(timeSlot.startTime);
+        setEndTime(timeSlot.endTime);
     };
 
     const deleteTimeSlot = (id) => {
@@ -219,8 +235,8 @@ const TimeSlot = () => {
 
             columnElements.forEach(element => {
                 if (isMediumScreen) {
-                    element.style.flex = '0 0 50%';
-                    element.style.maxWidth = '50%';
+                    element.style.flex = '0 0 100%';
+                    element.style.maxWidth = '100%';
                 } else {
                     element.style.flex = '0 0 100%';
                     element.style.maxWidth = '100%';
@@ -275,6 +291,21 @@ const TimeSlot = () => {
         return ['warning'].includes(variant) ? '#212529' : '#fff';
     };
 
+    const getWeeklySchedule = () => {
+        const schedule = {};
+        daysOfWeek.forEach(day => {
+            schedule[day] = filteredTimeSlots
+                .filter(slot => slot.day === day)
+                .sort((a, b) => a.startTime.localeCompare(b.startTime));
+        });
+        return schedule;
+    };
+
+    const getMaxSlots = () => {
+        const schedule = getWeeklySchedule();
+        return Math.max(...daysOfWeek.map(day => schedule[day].length), 1);
+    };
+
     const styles = {
         pageContainer: {
             backgroundColor: '#f8f9fc',
@@ -291,12 +322,14 @@ const TimeSlot = () => {
             display: 'flex',
             flexWrap: 'wrap',
             marginRight: '-15px',
-            marginLeft: '-15px'
+            marginLeft: '-15px',
+            flexDirection: 'column'
         },
         columnMd6: {
-            flex: '0 0 50%',
-            maxWidth: '50%',
-            padding: '0 15px'
+            flex: '0 0 100%',
+            maxWidth: '100%',
+            padding: '0 15px',
+            marginBottom: '20px'
         },
         card: {
             borderRadius: '12px',
@@ -357,12 +390,14 @@ const TimeSlot = () => {
         },
         tableContainer: {
             borderRadius: '8px',
-            overflow: 'hidden'
+            overflowX: 'auto', // Make table horizontally scrollable
+            whiteSpace: 'nowrap'
         },
         table: {
             width: '100%',
             borderCollapse: 'separate',
-            borderSpacing: 0
+            borderSpacing: 0,
+            minWidth: '1000px' // Ensure all days are visible with scrollbar
         },
         tableHeader: {
             backgroundColor: '#f8f9fc',
@@ -375,7 +410,8 @@ const TimeSlot = () => {
         },
         tableCell: {
             padding: '12px 15px',
-            borderBottom: '1px solid #e3e6f0'
+            borderBottom: '1px solid #e3e6f0',
+            verticalAlign: 'top'
         },
         dayBadge: {
             padding: '4px 8px',
@@ -424,7 +460,7 @@ const TimeSlot = () => {
 
                     {success && (
                         <div style={styles.successMessage}>
-                            Time slot added successfully!
+                            Time slot {editingId ? 'updated' : 'added'} successfully!
                         </div>
                     )}
                     {error && (
@@ -437,10 +473,12 @@ const TimeSlot = () => {
                         <div className="column-md-6" style={styles.columnMd6}>
                             <div style={styles.card}>
                                 <div style={{ ...styles.cardHeader, backgroundColor: '#4e73df', color: 'white' }}>
-                                    <h3 style={styles.cardTitle}>Add New Time Slot</h3>
+                                    <h3 style={styles.cardTitle}>
+                                        {editingId ? 'Edit Time Slot' : 'Add New Time Slot'}
+                                    </h3>
                                 </div>
                                 <div style={styles.cardBody}>
-                                    <form onSubmit={addTimeSlot}>
+                                    <form onSubmit={handleSubmit}>
                                         <div style={styles.formGroup}>
                                             <label htmlFor="day" style={styles.formLabel}>Day</label>
                                             <select
@@ -550,7 +588,7 @@ const TimeSlot = () => {
                                                 e.currentTarget.style.boxShadow = 'none';
                                             }}
                                         >
-                                            {isLoading ? 'Adding...' : 'Add Time Slot'}
+                                            {isLoading ? (editingId ? 'Updating...' : 'Adding...') : (editingId ? 'Update Time Slot' : 'Add Time Slot')}
                                         </button>
                                     </form>
                                 </div>
@@ -559,18 +597,19 @@ const TimeSlot = () => {
                         <div className="column-md-6" style={styles.columnMd6}>
                             <div style={styles.card}>
                                 <div style={{ ...styles.cardHeader, backgroundColor: '#6c757d', color: 'white' }}>
-                                    <h3 style={styles.cardTitle}>Your Schedule</h3>
+                                    <h3 style={styles.cardTitle}>Your Weekly Schedule</h3>
                                     <div className="relative">
                                         <input
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => handleSearch(e.target.value)}
-                                            placeholder="       Search time slots..."
+                                            placeholder="      Search time slots..."
                                             className="pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
                                         />
-                                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                                        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2 left-3" />
                                     </div>
                                 </div>
+
                                 <div style={styles.cardBody}>
                                     {isLoading && !filteredTimeSlots.length ? (
                                         <div style={styles.loadingSpinner}>
@@ -602,62 +641,78 @@ const TimeSlot = () => {
                                             <table style={styles.table}>
                                                 <thead>
                                                 <tr>
-                                                    <th style={styles.tableHeader}>Day</th>
-                                                    <th style={styles.tableHeader}>Start Time</th>
-                                                    <th style={styles.tableHeader}>End Time</th>
-                                                    <th style={styles.tableHeader}>Actions</th>
+                                                    {daysOfWeek.map((day) => (
+                                                        <th key={day} style={styles.tableHeader}>{day}</th>
+                                                    ))}
                                                 </tr>
                                                 </thead>
                                                 <tbody>
-                                                {filteredTimeSlots.map((timeSlot, index) => {
-                                                    const badgeColor = getDayColor(timeSlot.day);
-                                                    return (
-                                                        <tr
-                                                            key={index}
-                                                            style={{
-                                                                backgroundColor: index % 2 === 0 ? '#fff' : '#f8f9fc',
-                                                                transition: 'background-color 0.3s',
-                                                            }}
-                                                            onMouseOver={(e) => {
-                                                                e.currentTarget.style.backgroundColor = '#f1f3fa';
-                                                            }}
-                                                            onMouseOut={(e) => {
-                                                                e.currentTarget.style.backgroundColor = index % 2 === 0 ? '#fff' : '#f8f9fc';
-                                                            }}
-                                                        >
-                                                            <td style={styles.tableCell}>
-                                                                <span style={{
-                                                                    ...styles.dayBadge,
-                                                                    backgroundColor: getBadgeBackground(badgeColor),
-                                                                    color: getBadgeTextColor(badgeColor),
-                                                                }}>
-                                                                    {timeSlot.day}
-                                                                </span>
-                                                            </td>
-                                                            <td style={styles.tableCell}>{formatTime(timeSlot.startTime)}</td>
-                                                            <td style={styles.tableCell}>{formatTime(timeSlot.endTime)}</td>
-                                                            <td style={styles.tableCell}>
-                                                                <button
-                                                                    onClick={() => deleteTimeSlot(timeSlot.id)}
-                                                                    style={styles.actionButton}
-                                                                    disabled={isLoading}
-                                                                    onMouseOver={(e) => {
-                                                                        e.currentTarget.style.backgroundColor = '#dc3545';
-                                                                        e.currentTarget.style.color = 'white';
-                                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                                    }}
-                                                                    onMouseOut={(e) => {
-                                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                                        e.currentTarget.style.color = '#dc3545';
-                                                                        e.currentTarget.style.transform = 'none';
-                                                                    }}
-                                                                >
-                                                                    <span style={{ marginRight: '5px' }}>✕</span> Remove
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                {Array.from({ length: getMaxSlots() }).map((_, rowIndex) => (
+                                                    <tr key={rowIndex}>
+                                                        {daysOfWeek.map((day) => {
+                                                            const schedule = getWeeklySchedule();
+                                                            const slot = schedule[day][rowIndex];
+                                                            return (
+                                                                <td key={day} style={styles.tableCell}>
+                                                                    {slot ? (
+                                                                        <div>
+                                                                                <span style={{
+                                                                                    ...styles.dayBadge,
+                                                                                    backgroundColor: getBadgeBackground(getDayColor(day)),
+                                                                                    color: getBadgeTextColor(getDayColor(day)),
+                                                                                    display: 'inline-block',
+                                                                                    marginBottom: '5px'
+                                                                                }}>
+                                                                                    {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+                                                                                </span>
+                                                                            <div>
+                                                                                <button
+                                                                                    onClick={() => editTimeSlot(slot)}
+                                                                                    style={{
+                                                                                        ...styles.actionButton,
+                                                                                        color: '#4e73df',
+                                                                                        borderColor: '#4e73df',
+                                                                                        marginRight: '5px'
+                                                                                    }}
+                                                                                    disabled={isLoading}
+                                                                                    onMouseOver={(e) => {
+                                                                                        e.currentTarget.style.backgroundColor = '#4e73df';
+                                                                                        e.currentTarget.style.color = 'white';
+                                                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                                                    }}
+                                                                                    onMouseOut={(e) => {
+                                                                                        e.currentTarget.style.backgroundColor = 'transparent';
+                                                                                        e.currentTarget.style.color = '#4e73df';
+                                                                                        e.currentTarget.style.transform = 'none';
+                                                                                    }}
+                                                                                >
+                                                                                    <span style={{ marginRight: '5px' }}>✎</span> Edit
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => deleteTimeSlot(slot.id)}
+                                                                                    style={styles.actionButton}
+                                                                                    disabled={isLoading}
+                                                                                    onMouseOver={(e) => {
+                                                                                        e.currentTarget.style.backgroundColor = '#dc3545';
+                                                                                        e.currentTarget.style.color = 'white';
+                                                                                        e.currentTarget.style.transform = 'translateY(-2px)';
+                                                                                    }}
+                                                                                    onMouseOut={(e) => {
+                                                                                        e.currentTarget.style.backgroundColor = 'transparent';
+                                                                                        e.currentTarget.style.color = '#dc3545';
+                                                                                        e.currentTarget.style.transform = 'none';
+                                                                                    }}
+                                                                                >
+                                                                                    <span style={{ marginRight: '5px' }}>✕</span> Remove
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : null}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
                                                 </tbody>
                                             </table>
                                         </div>
