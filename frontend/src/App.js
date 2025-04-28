@@ -20,6 +20,7 @@ import StudentTimetable from "./pages/students/StudentTimetable";
 import InstructorDashboardPage from "./components/InstructorDashboard"
 import InstructorPreferencesPage from "./components/InstructorPreferences";
 import InstructorCourses from "./pages/instructors/InstructorCourses";
+import InstructorProfile from "./pages/instructors/InstructorProfile";
 
 
 const ROLES = {
@@ -57,6 +58,7 @@ function App() {
             <Route path="instructor-dashboard" element={<InstructorDashboardPage />} />
             <Route path="instructor-preferences" element={<InstructorPreferencesPage />} />
             <Route path="instructor-courses" element={<InstructorCourses />} />
+            <Route path="instructor-profile" element={<InstructorProfile />} />
           </Route>
 
           <Route
