@@ -1,16 +1,12 @@
 package com.itpm.AcademicSchedulerApi.service.impl;
 
+import com.itpm.AcademicSchedulerApi.controller.dto.CourseDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorPreferencesDto;
 import com.itpm.AcademicSchedulerApi.controller.dto.PreferenceDto;
-import com.itpm.AcademicSchedulerApi.model.Department;
-import com.itpm.AcademicSchedulerApi.model.Instructor;
-import com.itpm.AcademicSchedulerApi.model.TimeSlot;
-import com.itpm.AcademicSchedulerApi.model.User;
-import com.itpm.AcademicSchedulerApi.repository.DepartmentRepository;
-import com.itpm.AcademicSchedulerApi.repository.InstructorRepository;
-import com.itpm.AcademicSchedulerApi.repository.TimeSlotRepository;
-import com.itpm.AcademicSchedulerApi.repository.UserRepository;
+import com.itpm.AcademicSchedulerApi.exception.ResourceNotFoundException;
+import com.itpm.AcademicSchedulerApi.model.*;
+import com.itpm.AcademicSchedulerApi.repository.*;
 import com.itpm.AcademicSchedulerApi.service.InstructorService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
@@ -29,6 +25,7 @@ public class InstructorServiceImpl implements InstructorService {
     private final InstructorRepository instructorRepository;
     private final DepartmentRepository departmentRepository;
     private final TimeSlotRepository timeSlotRepository;
+    private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final AuthenticationServiceImpl authenticationService;
 
@@ -57,18 +54,16 @@ public class InstructorServiceImpl implements InstructorService {
     public Instructor createInstructor(InstructorDTO instructorDto) {
         System.out.println(instructorDto.toString());
 
-        // Create user account for the instructor
         User user = authenticationService.registerInstructorUser(
                 instructorDto.getUsername(),
                 instructorDto.getPassword(),
                 instructorDto.getEmail()
         );
 
-        // Create instructor entity
         Instructor instructor = new Instructor();
         instructor.setFirstName(instructorDto.getFirstName());
         instructor.setLastName(instructorDto.getLastName());
-        instructor.setUser(user); // Link instructor to user
+        instructor.setUser(user);
 
         Department department = departmentRepository.findByName(instructorDto.getDeptName())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid department name:" + instructorDto.getDeptName()));
@@ -84,11 +79,9 @@ public class InstructorServiceImpl implements InstructorService {
             instructor.setFirstName(instructorDto.getFirstName());
             instructor.setLastName(instructorDto.getLastName());
 
-            // Look up the Department by its name.
             Department department = departmentRepository.findByName(instructorDto.getDeptName())
                     .orElseThrow(() -> new EntityNotFoundException("Department not found with name: " + instructorDto.getDeptName()));
 
-            // Set the Department on the Instructor.
             instructor.setDepartment(department);
 
             Instructor updatedInstructor = instructorRepository.save(instructor);
@@ -103,32 +96,21 @@ public class InstructorServiceImpl implements InstructorService {
         Instructor instructor = instructorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + id));
 
-        // Get the user associated with this instructor
         User user = instructor.getUser();
-
-        // First remove the instructor
         instructorRepository.delete(instructor);
-
-        // Then remove the associated user if it exists
         if (user != null) {
-            // You'll need to inject UserRepository
             userRepository.delete(user);
         }
     }
 
     public Instructor addPreference(Long instructorId, Long timeslotId) {
-        // Fetch the instructor by id
         Instructor instructor = instructorRepository.findById(instructorId)
                 .orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + instructorId));
 
-        // Fetch the timeslot by id
         TimeSlot timeSlot = timeSlotRepository.findById(timeslotId)
                 .orElseThrow(() -> new EntityNotFoundException("Timeslot not found with id: " + timeslotId));
 
-        // Add the timeslot to the instructor's preferences
         instructor.getPreferences().add(timeSlot);
-
-        // Save the instructor and return
         return instructorRepository.save(instructor);
     }
 
@@ -136,21 +118,36 @@ public class InstructorServiceImpl implements InstructorService {
         Instructor instructor = instructorRepository.findById(instructorId)
                 .orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + instructorId));
 
-        TimeSlot timeSlot = timeSlotRepository.findByDayAndStartTime(preferenceDto.getDay(), preferenceDto.getStartTime())
-                .orElseThrow(() -> new EntityNotFoundException("Timeslot not found for day: " + preferenceDto.getDay() + ", startTime: " + preferenceDto.getStartTime()));
+        TimeSlot timeSlot = timeSlotRepository.findById(preferenceDto.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Timeslot not found with id: " + preferenceDto.getId()));
 
-        // Remove the existing timeslot for the specified day and start time if exists
         instructor.getPreferences().removeIf(slot -> slot.getDay().equals(preferenceDto.getDay()) && slot.getStartTime().equals(preferenceDto.getStartTime()));
-
-        // Add the new timeslot to the instructor's preferences
         instructor.getPreferences().add(timeSlot);
 
         Instructor updatedInstructor = instructorRepository.save(instructor);
 
-        // convert to DTO and return
         InstructorDTO instructorDTO = new InstructorDTO();
-        // set DTO fields based on updatedInstructor
+        instructorDTO.setId(updatedInstructor.getId());
+        instructorDTO.setFirstName(updatedInstructor.getFirstName());
+        instructorDTO.setLastName(updatedInstructor.getLastName());
+        instructorDTO.setDeptName(updatedInstructor.getDepartment().getName());
+        if (updatedInstructor.getUser() != null) {
+            instructorDTO.setUsername(updatedInstructor.getUser().getUsername());
+            instructorDTO.setEmail(updatedInstructor.getUser().getEmail());
+        }
         return instructorDTO;
+    }
+
+    @Transactional
+    public void deletePreference(Long instructorId, Long timeslotId) {
+        Instructor instructor = instructorRepository.findById(instructorId)
+                .orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + instructorId));
+
+        TimeSlot timeSlot = timeSlotRepository.findById(timeslotId)
+                .orElseThrow(() -> new EntityNotFoundException("Timeslot not found with id: " + timeslotId));
+
+        instructor.getPreferences().remove(timeSlot);
+        instructorRepository.save(instructor);
     }
 
     public List<InstructorPreferencesDto> getAllInstructorPreferences() {
@@ -160,11 +157,68 @@ public class InstructorServiceImpl implements InstructorService {
                     InstructorPreferencesDto dto = new InstructorPreferencesDto();
                     dto.setInstructorName(instructor.getFirstName() + " " + instructor.getLastName());
                     dto.setPreferences(instructor.getPreferences().stream().map(timeSlot -> {
-                        PreferenceDto preferenceDto = new PreferenceDto(timeSlot.getDay(), timeSlot.getStartTime());
-                        preferenceDto.setId(timeSlot.getId());
+                        PreferenceDto preferenceDto = new PreferenceDto(
+                                timeSlot.getId(),
+                                timeSlot.getDay(),
+                                timeSlot.getStartTime(),
+                                timeSlot.getEndTime()
+                        );
                         return preferenceDto;
                     }).collect(Collectors.toSet()));
                     return dto;
                 }).collect(Collectors.toList());
+    }
+
+    public InstructorPreferencesDto getInstructorPreferencesByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with username: " + username));
+        Instructor instructor = instructorRepository.findByUser(user)
+                .orElseThrow(() -> new EntityNotFoundException("Instructor not found for username: " + username));
+
+        InstructorPreferencesDto dto = new InstructorPreferencesDto();
+        dto.setInstructorName(instructor.getFirstName() + " " + instructor.getLastName());
+        dto.setPreferences(instructor.getPreferences().stream().map(timeSlot -> {
+            PreferenceDto preferenceDto = new PreferenceDto(
+                    timeSlot.getId(),
+                    timeSlot.getDay(),
+                    timeSlot.getStartTime(),
+                    timeSlot.getEndTime()
+            );
+            return preferenceDto;
+        }).collect(Collectors.toSet()));
+        return dto;
+    }
+
+    public InstructorDTO getInstructorByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with username: " + username));
+        Instructor instructor = instructorRepository.findByUser(user)
+                .orElseThrow(() -> new EntityNotFoundException("Instructor not found for username: " + username));
+        return convertToDTO(instructor);
+    }
+    @Override
+    public List<CourseDTO> getInstructorCoursesByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
+        Instructor instructor = instructorRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Instructor", "username", username));
+
+        List<Course> courses = courseRepository.findByInstructor(instructor);
+        return courses.stream().map(this::convertToDTO).collect(Collectors.toList());
+    }
+
+    private CourseDTO convertToDTO(Course course) {
+        CourseDTO courseDTO = new CourseDTO();
+        courseDTO.setId(course.getId());
+        courseDTO.setCourseCode(course.getCourseCode());
+        courseDTO.setCourseName(course.getCourseName());
+        courseDTO.setYear(course.getYear());
+        courseDTO.setSemester(course.getSemester());
+        courseDTO.setProgrammeName(course.getProgram() != null ? course.getProgram().getName() : null);
+        courseDTO.setDeptName(course.getDepartment() != null ? course.getDepartment().getName() : null);
+        courseDTO.setInstructorName(course.getInstructor() != null
+                ? course.getInstructor().getFirstName() + " " + course.getInstructor().getLastName()
+                : null);
+        return courseDTO;
     }
 }

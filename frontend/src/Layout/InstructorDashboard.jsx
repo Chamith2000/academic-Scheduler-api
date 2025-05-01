@@ -28,7 +28,7 @@ export default function InstructorDashboard({ children }) {
         {
             icon: HiHome,
             label: "Dashboard",
-            path: "/instructor-dashboard",
+            path: "/dashboard",
             bgGradient: "from-blue-500 to-blue-700"
         },
         {
@@ -95,38 +95,38 @@ export default function InstructorDashboard({ children }) {
                     </Link>
                 </div>
 
-                {/* Profile Section */}
-                {auth && (
-                    <div className="px-4 py-6 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <img
-                                    className="w-12 h-12 rounded-full object-cover"
-                                    src={auth.profilePicture || "/default-avatar.png"}
-                                    alt="Profile"
-                                />
-                            </div>
-                            {isExpanded && (
-                                <div className="ml-4">
-                                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                        {auth.name}
-                                    </h3>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {auth.department}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                        {isExpanded && (
-                            <Link
-                                to="/instructor-profile"
-                                className="mt-3 block text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                            >
-                                View Profile
-                            </Link>
-                        )}
-                    </div>
-                )}
+                {/*/!* Profile Section *!/*/}
+                {/*{auth && (*/}
+                {/*    <div className="px-4 py-6 border-b border-gray-200 dark:border-gray-700">*/}
+                {/*        <div className="flex items-center">*/}
+                {/*            <div className="flex-shrink-0">*/}
+                {/*                <img*/}
+                {/*                    className="w-12 h-12 rounded-full object-cover"*/}
+                {/*                    src={auth.profilePicture || "/default-avatar.png"}*/}
+                {/*                    alt="Profile"*/}
+                {/*                />*/}
+                {/*            </div>*/}
+                {/*            {isExpanded && (*/}
+                {/*                <div className="ml-4">*/}
+                {/*                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">*/}
+                {/*                        {auth.name}*/}
+                {/*                    </h3>*/}
+                {/*                    <p className="text-xs text-gray-500 dark:text-gray-400">*/}
+                {/*                        {auth.department}*/}
+                {/*                    </p>*/}
+                {/*                </div>*/}
+                {/*            )}*/}
+                {/*        </div>*/}
+                {/*        {isExpanded && (*/}
+                {/*            <Link*/}
+                {/*                to="/instructor-profile"*/}
+                {/*                className="mt-3 block text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"*/}
+                {/*            >*/}
+                {/*                View Profile*/}
+                {/*            </Link>*/}
+                {/*        )}*/}
+                {/*    </div>*/}
+                {/*)}*/}
 
                 {/* Navigation Items */}
                 <nav className="mt-8 px-4">

@@ -29,7 +29,7 @@ export default function StudentDashboardLayout({ children }) {
         {
             icon: HiHome,
             label: "Dashboard",
-            path: "/student-dashboard",
+            path: "/dashboard",
             bgGradient: "from-blue-500 to-blue-700"
         },
         {
