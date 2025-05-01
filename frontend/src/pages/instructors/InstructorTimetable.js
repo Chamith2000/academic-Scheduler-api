@@ -151,10 +151,11 @@ const Table = ({ data, timeslots }) => {
                 <h2 className="text-lg font-semibold">Weekly Schedule</h2>
                 <Button
                     onClick={downloadTimetable}
-                    className="flex items-center bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600"
+                    className="flex items-center bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-3 py-2 rounded-lg shadow-md hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:scale-105"
                 >
                     <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
                     Download Timetable
+                    {/* Sinhala: කාලසටහන බාගත කරන්න */}
                 </Button>
             </div>
 

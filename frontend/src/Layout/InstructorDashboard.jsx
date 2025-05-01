@@ -58,7 +58,7 @@ export default function InstructorDashboard({ children }) {
         {
             icon: HiCog,
             label: "Settings",
-            path: "/instructor-settings",
+            path: "settings",
             bgGradient: "from-blue-500 to-blue-700"
         }
     ];
