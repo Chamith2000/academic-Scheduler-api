@@ -34,7 +34,6 @@ public class TimeSlotController {
         return new ResponseEntity<>(updatedTimeSlotDto, HttpStatus.OK);
     }
 
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTimeSlot(@PathVariable Long id) {
         timeSlotService.deleteTimeSlot(id);
@@ -46,7 +45,6 @@ public class TimeSlotController {
         TimeSlot timeSlot = timeSlotService.getTimeSlotById(id);
         return new ResponseEntity<>(timeSlot, HttpStatus.OK);
     }
-
 
     @GetMapping
     public ResponseEntity<List<TimeSlotDTO>> getAllTimeSlots() {
