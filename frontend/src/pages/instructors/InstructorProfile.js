@@ -39,7 +39,7 @@ const InstructorProfile = () => {
         { icon: HiAcademicCap, label: "Courses", path: "/instructor-courses", bgGradient: "from-blue-500 to-blue-700" },
         { icon: HiDocumentText, label: "Reports", path: "/instructor-reports", bgGradient: "from-blue-500 to-blue-700" },
         { icon: HiAdjustments, label: "Preferences", path: "/instructor-preferences", bgGradient: "from-blue-500 to-blue-700" },
-        { icon: HiCog, label: "Settings", path: "/instructor-settings", bgGradient: "from-blue-500 to-blue-700" },
+        { icon: HiCog, label: "Settings", path: "/settings", bgGradient: "from-blue-500 to-blue-700" },
     ];
 
     // Fetch instructor details

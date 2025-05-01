@@ -3,11 +3,17 @@ package com.itpm.AcademicSchedulerApi.controller;
 import com.itpm.AcademicSchedulerApi.controller.dto.CourseDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorPreferencesDto;
+import com.itpm.AcademicSchedulerApi.controller.dto.PasswordChangeDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.PreferenceDto;
 import com.itpm.AcademicSchedulerApi.model.Instructor;
 import com.itpm.AcademicSchedulerApi.service.InstructorService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -27,6 +33,7 @@ public class InstructorController {
         this.instructorService = instructorService;
     }
 
+    // Existing endpoints (unchanged)
     @GetMapping
     public ResponseEntity<List<InstructorDTO>> getAllInstructors() {
         List<InstructorDTO> instructors = instructorService.getAllInstructors();
@@ -114,5 +121,115 @@ public class InstructorController {
         String username = authentication.getName();
         List<CourseDTO> courses = instructorService.getInstructorCoursesByUsername(username);
         return new ResponseEntity<>(courses, HttpStatus.OK);
+    }
+
+    @PutMapping("/me")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<?> updateMyProfile(@RequestBody InstructorDTO instructorDTO, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            InstructorDTO updatedInstructor = instructorService.updateMyProfile(username, instructorDTO);
+            return new ResponseEntity<>(updatedInstructor, HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>("An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PutMapping("/me/password")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<?> changeMyPassword(@RequestBody PasswordChangeDTO passwordChangeDTO, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            instructorService.changeMyPassword(username, passwordChangeDTO);
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (IllegalArgumentException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return new ResponseEntity<>("An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/me/reports/courses")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<Resource> downloadCoursesReport(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            byte[] csvData = instructorService.generateCoursesReportCsv(username);
+            ByteArrayResource resource = new ByteArrayResource(csvData);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=courses_report.csv");
+            headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+            headers.add(HttpHeaders.PRAGMA, "no-cache");
+            headers.add(HttpHeaders.EXPIRES, "0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentLength(csvData.length)
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .body(resource);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/me/reports/availability-gaps")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<Resource> downloadAvailabilityGapsReport(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            byte[] csvData = instructorService.generateAvailabilityGapsReportCsv(username);
+            ByteArrayResource resource = new ByteArrayResource(csvData);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=availability_gaps_report.csv");
+            headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+            headers.add(HttpHeaders.PRAGMA, "no-cache");
+            headers.add(HttpHeaders.EXPIRES, "0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentLength(csvData.length)
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .body(resource);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/me/reports/workload")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<Resource> downloadWorkloadReport(Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            byte[] csvData = instructorService.generateWorkloadReportCsv(username);
+            ByteArrayResource resource = new ByteArrayResource(csvData);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=workload_report.csv");
+            headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+            headers.add(HttpHeaders.PRAGMA, "no-cache");
+            headers.add(HttpHeaders.EXPIRES, "0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentLength(csvData.length)
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .body(resource);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }

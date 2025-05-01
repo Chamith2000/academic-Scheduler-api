@@ -21,6 +21,8 @@ import InstructorDashboardPage from "./components/InstructorDashboard"
 import InstructorPreferencesPage from "./components/InstructorPreferences";
 import InstructorCourses from "./pages/instructors/InstructorCourses";
 import InstructorProfile from "./pages/instructors/InstructorProfile";
+import InstructorSettingsPage from "./pages/instructors/InstructorReports";
+import InstructorReportsPage from "./pages/instructors/InstructorSettings";
 
 
 const ROLES = {
@@ -66,6 +68,8 @@ function App() {
           >
             <Route path="student-timetable" element={<StudentTimetable />} />
             <Route path="dashboard" element={<InstructorDashboardPage />} />
+            <Route path="settings" element={<InstructorSettingsPage />} />
+            <Route path="instructor-reports" element={<InstructorReportsPage />} />
             <Route
                 path="instructor-preference"
                 element={<InstructorPreference />}
