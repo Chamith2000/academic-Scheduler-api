@@ -55,16 +55,17 @@ function App() {
           >
             <Route path="instructor" element={<Instructor />} />
             <Route path="instructor-timetable" element={<InstructorTimetable />} />
-            <Route path="instructor-dashboard" element={<InstructorDashboardPage />} />
+
             <Route path="instructor-preferences" element={<InstructorPreferencesPage />} />
             <Route path="instructor-courses" element={<InstructorCourses />} />
             <Route path="instructor-profile" element={<InstructorProfile />} />
           </Route>
 
           <Route
-              element={<RequireAuth allowedRoles={[ROLES.student]} />}
+              element={<RequireAuth allowedRoles={[ROLES.instructor,ROLES.student]} />}
           >
             <Route path="student-timetable" element={<StudentTimetable />} />
+            <Route path="dashboard" element={<InstructorDashboardPage />} />
             <Route
                 path="instructor-preference"
                 element={<InstructorPreference />}

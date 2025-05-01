@@ -1,5 +1,6 @@
 package com.itpm.AcademicSchedulerApi.controller;
 
+import com.itpm.AcademicSchedulerApi.controller.dto.CourseDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorPreferencesDto;
 import com.itpm.AcademicSchedulerApi.controller.dto.PreferenceDto;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -77,9 +79,40 @@ public class InstructorController {
         return new ResponseEntity<>(instructorDTO, HttpStatus.OK);
     }
 
+    @DeleteMapping("/{instructorId}/preferences/{timeslotId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'INSTRUCTOR')")
+    public ResponseEntity<Void> deletePreference(@PathVariable Long instructorId, @PathVariable Long timeslotId) {
+        instructorService.deletePreference(instructorId, timeslotId);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
     @GetMapping("/preferences")
     public ResponseEntity<List<InstructorPreferencesDto>> getAllPreferences() {
         List<InstructorPreferencesDto> preferences = instructorService.getAllInstructorPreferences();
         return new ResponseEntity<>(preferences, HttpStatus.OK);
+    }
+
+    @GetMapping("/me/preferences")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<InstructorPreferencesDto> getMyPreferences(Authentication authentication) {
+        String username = authentication.getName();
+        InstructorPreferencesDto preferences = instructorService.getInstructorPreferencesByUsername(username);
+        return new ResponseEntity<>(preferences, HttpStatus.OK);
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<InstructorDTO> getMyDetails(Authentication authentication) {
+        String username = authentication.getName();
+        InstructorDTO instructor = instructorService.getInstructorByUsername(username);
+        return new ResponseEntity<>(instructor, HttpStatus.OK);
+    }
+
+    @GetMapping("/courses")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<List<CourseDTO>> getInstructorCourses(Authentication authentication) {
+        String username = authentication.getName();
+        List<CourseDTO> courses = instructorService.getInstructorCoursesByUsername(username);
+        return new ResponseEntity<>(courses, HttpStatus.OK);
     }
 }

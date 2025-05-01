@@ -17,6 +17,4 @@ public class CourseDTO {
     private String deptName;
     private String instructorName;
 
-    public CourseDTO(String courseCode, String courseName, int year, int semester, String name, String name1, String firstName) {
-    }
 }

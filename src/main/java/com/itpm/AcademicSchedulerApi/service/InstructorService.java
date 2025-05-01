@@ -1,8 +1,9 @@
 package com.itpm.AcademicSchedulerApi.service;
 
+import com.itpm.AcademicSchedulerApi.controller.dto.CourseDTO;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorDTO;
-import com.itpm.AcademicSchedulerApi.controller.dto.PreferenceDto;
 import com.itpm.AcademicSchedulerApi.controller.dto.InstructorPreferencesDto;
+import com.itpm.AcademicSchedulerApi.controller.dto.PreferenceDto;
 import com.itpm.AcademicSchedulerApi.model.Instructor;
 
 import java.util.List;
@@ -24,6 +25,13 @@ public interface InstructorService {
 
     InstructorDTO updatePreference(Long instructorId, PreferenceDto preferenceDto);
 
+    void deletePreference(Long instructorId, Long timeslotId);
+
     List<InstructorPreferencesDto> getAllInstructorPreferences();
 
+    InstructorPreferencesDto getInstructorPreferencesByUsername(String username);
+
+    InstructorDTO getInstructorByUsername(String username);
+
+    List<CourseDTO> getInstructorCoursesByUsername(String username);
 }

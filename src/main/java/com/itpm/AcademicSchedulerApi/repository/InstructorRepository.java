@@ -1,6 +1,7 @@
 package com.itpm.AcademicSchedulerApi.repository;
 
 import com.itpm.AcademicSchedulerApi.model.Instructor;
+import com.itpm.AcademicSchedulerApi.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,14 +13,13 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long> {
 
     // Find instructor by first name
     Optional<Instructor> findByFirstName(String firstName);
+
+    // Find instructor by ID
     Optional<Instructor> findById(Long id);
+
     // Find instructor by first and last name
     List<Instructor> findByFirstNameAndLastName(String firstName, String lastName);
 
-
-
-    // Optionally, if you are deleting preferences within the repository,
-    // you can add a method to remove the preference directly (though usually it's handled in the service layer).
-    // For example, deleting by instructorId and timeslotId:
-//     void deletePreferenceByInstructorIdAndTimeslotId(Long instructorId, Long timeslotId);
+    // Find instructor by user
+    Optional<Instructor> findByUser(User user);
 }

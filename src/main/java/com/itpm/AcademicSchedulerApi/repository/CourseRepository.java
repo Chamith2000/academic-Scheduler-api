@@ -2,6 +2,7 @@ package com.itpm.AcademicSchedulerApi.repository;
 
 
 import com.itpm.AcademicSchedulerApi.model.Course;
+import com.itpm.AcademicSchedulerApi.model.Instructor;
 import com.itpm.AcademicSchedulerApi.model.Program;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -16,5 +17,6 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findBySemesterAndYearAndProgram(int semester, int year, Program program);
 
     Optional<Course> findByCourseName(String courseName);
+    List<Course> findByInstructor(Instructor instructor);
 
 }
