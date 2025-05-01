@@ -19,7 +19,5 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long> {
 
     // Find instructor by first and last name
     List<Instructor> findByFirstNameAndLastName(String firstName, String lastName);
-
-    // Find instructor by user
     Optional<Instructor> findByUser(User user);
 }
