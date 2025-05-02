@@ -15,6 +15,7 @@ public class ScheduleStatus {
     @Column(unique = true)
     private int semester;
 
+    @Column(length = 255)
     private String status;
 
 
