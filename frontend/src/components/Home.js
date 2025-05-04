@@ -81,6 +81,8 @@ const Home = () => {
                 }
             )
             .then(() => {
+                let attempts = 0;
+                const maxAttempts = 24; // Poll for up to 2 minutes
                 let intervalId = setInterval(() => {
                     axios
                         .get(
@@ -92,6 +94,7 @@ const Home = () => {
                             }
                         )
                         .then((response) => {
+                            console.log("Status:", response.data);
                             if (response.data === "COMPLETED" || response.data === "SUCCESS") {
                                 clearInterval(intervalId);
                                 setLoading(false);
@@ -99,12 +102,18 @@ const Home = () => {
                                 setTimeout(() => {
                                     fetchTimetables();
                                     setIsCompleted(false);
+                                    setActiveTab(0);
                                 }, 1500);
                             } else if (response.data.includes("FAILED")) {
                                 clearInterval(intervalId);
                                 setLoading(false);
                                 setError("Timetable generation failed: " + response.data);
+                            } else if (attempts >= maxAttempts) {
+                                clearInterval(intervalId);
+                                setLoading(false);
+                                setError("Timetable generation timed out. Please try again.");
                             }
+                            attempts++;
                         })
                         .catch((error) => {
                             setError("Failed to check status: " + (error.message || "Unknown error"));
@@ -136,6 +145,7 @@ const Home = () => {
                 },
             })
             .then((response) => {
+                console.log("Fetched Timetables:", response.data);
                 setTimetables(response.data);
                 setOriginalData(response.data);
             })
@@ -378,7 +388,7 @@ const Home = () => {
                             sx={{ mb: 2 }}
                         >
                             {timetables.map((item, index) => (
-                                <Tab key={item.id} label={`Timetable ${item.id}`} />
+                                <Tab key={item.id || index} label={`Timetable ${item.id || index + 1}`} />
                             ))}
                         </Tabs>
                         {timetables[activeTab] && (
@@ -402,7 +412,6 @@ const TimetableDisplay = ({ timetable, timeslots }) => {
             schedule: {},
         };
 
-        // Initialize schedule for each day
         daysOfWeek.forEach((day) => {
             formattedTimetable.schedule[day] = Array(uniqueTimeslots.length).fill(null);
         });
@@ -410,7 +419,6 @@ const TimetableDisplay = ({ timetable, timeslots }) => {
         console.log("Schedule Data:", scheduleData);
         console.log("Unique Timeslots:", uniqueTimeslots);
 
-        // Populate schedule
         scheduleData.timeSlots.forEach((timeSlot, index) => {
             console.log("Processing timeSlot:", timeSlot);
             const splitResult = timeSlot.split(": ");
@@ -419,10 +427,9 @@ const TimetableDisplay = ({ timetable, timeslots }) => {
                 return;
             }
             let [day, timeslot] = splitResult;
-            day = day.trim().charAt(0).toUpperCase() + day.slice(1).toLowerCase(); // Normalize: "monday" -> "Monday"
-            const timeslotStripped = timeslot.trim();
+            day = day.trim().charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+            const timeslotStripped = timeslot?.trim() || "";
 
-            // Check if day is valid
             if (!daysOfWeek.includes(day)) {
                 console.warn(`Invalid day: ${day}`);
                 return;
