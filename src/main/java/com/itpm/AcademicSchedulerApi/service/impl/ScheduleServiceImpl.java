@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,8 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final TimeSlotRepository timeSlotRepository;
     private final RoomRepository roomRepository;
     private final InstructorRepository instructorRepository;
+    private final SectionRepository sectionRepository;
+    private final ProgramRepository programmeRepository;
 
     @Override
     public void generateSchedule(int semester) {
@@ -33,9 +36,11 @@ public class ScheduleServiceImpl implements ScheduleService {
             List<TimeSlot> timeSlots = timeSlotRepository.findAll();
             List<Room> rooms = roomRepository.findAll();
             List<Instructor> instructors = instructorRepository.findAll();
+            List<Program> programmes = programmeRepository.findAll();
 
             System.out.println("Courses: " + courses.size() + ", TimeSlots: " + timeSlots.size() +
-                    ", Rooms: " + rooms.size() + ", Instructors: " + instructors.size());
+                    ", Rooms: " + rooms.size() + ", Instructors: " + instructors.size() +
+                    ", Programmes: " + programmes.size());
 
             if (courses.isEmpty() || timeSlots.isEmpty() || rooms.isEmpty() || instructors.isEmpty()) {
                 System.out.println("Missing data detected");
@@ -43,53 +48,86 @@ public class ScheduleServiceImpl implements ScheduleService {
                 return;
             }
 
+            // Cache sections and programmes
+            Map<Long, List<Section>> courseSections = new HashMap<>();
+            for (Course course : courses) {
+                courseSections.put(course.getId(), sectionRepository.findByCourseId(course.getId()));
+            }
+            Map<Long, Program> programmeMap = programmes.stream()
+                    .collect(Collectors.toMap(Program::getId, p -> p));
+
+            // Validate courses - check instructor assignments
+            for (Course course : courses) {
+                System.out.println("Validating course: " + course.getCourseCode() + ", instructor_id: " +
+                        (course.getInstructor() != null ? course.getInstructor().getId() : "null"));
+                if (course.getInstructor() == null) {
+                    System.out.println("Course " + course.getCourseCode() + " has no assigned instructor.");
+                    updateScheduleStatus(semester, "FAILED: Course " + course.getCourseCode() + " has no assigned instructor");
+                    return;
+                }
+
+                Long instructorId = course.getInstructor().getId();
+                boolean instructorExists = instructors.stream()
+                        .anyMatch(i -> i.getId().equals(instructorId));
+
+                if (!instructorExists) {
+                    System.out.println("Course " + course.getCourseCode() + " has invalid instructor_id: " + instructorId);
+                    updateScheduleStatus(semester, "FAILED: Invalid instructor_id for course " + course.getCourseCode());
+                    return;
+                    // Optional: Skip invalid courses instead of failing
+                    // System.out.println("Skipping course " + course.getCourseCode() + " due to invalid instructor_id: " + instructorId);
+                    // continue;
+                }
+            }
+
             // Track assignments to avoid conflicts
-            Map<String, Set<Long>> timeSlotToCourseIds = new HashMap<>(); // timeSlot -> courseIds
-            Map<String, Set<Long>> timeSlotToInstructorIds = new HashMap<>(); // timeSlot -> instructorIds
-            Map<String, Set<Long>> timeSlotToRoomIds = new HashMap<>(); // timeSlot -> roomIds
+            Map<String, Set<Long>> timeSlotToCourseIds = new HashMap<>();
+            Map<String, Set<Long>> timeSlotToInstructorIds = new HashMap<>();
+            Map<String, Set<Long>> timeSlotToRoomIds = new HashMap<>();
             List<ScheduleResult> results = new ArrayList<>();
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
-            // Shuffle time slots and rooms to distribute assignments
+            // Shuffle time slots and rooms for better distribution
             Collections.shuffle(timeSlots, new Random());
             Collections.shuffle(rooms, new Random());
 
             for (Course course : courses) {
                 boolean assigned = false;
-                // Try each time slot
+                Instructor assignedInstructor = course.getInstructor();
+                if (assignedInstructor == null) {
+                    System.out.println("No instructor found for course: " + course.getCourseCode());
+                    updateScheduleStatus(semester, "FAILED: No instructor found for course " + course.getCourseCode());
+                    return;
+                }
+
                 for (TimeSlot timeSlot : timeSlots) {
                     String timeSlotKey = timeSlot.getDay() + ":" +
                             timeSlot.getStartTime().format(timeFormatter) + "-" +
                             timeSlot.getEndTime().format(timeFormatter);
 
-                    // Initialize maps if not present
+                    // Initialize sets for this time slot if they don't exist
                     timeSlotToCourseIds.computeIfAbsent(timeSlotKey, k -> new HashSet<>());
                     timeSlotToInstructorIds.computeIfAbsent(timeSlotKey, k -> new HashSet<>());
                     timeSlotToRoomIds.computeIfAbsent(timeSlotKey, k -> new HashSet<>());
 
-                    // Find the instructor for this course
-                    Instructor assignedInstructor = instructors.stream()
-                            .filter(i -> i.getId().equals(course.getId()))
-                            .findFirst()
-                            .orElse(null);
-
-                    if (assignedInstructor == null) {
-                        System.out.println("No instructor found for course: " + course.getCourseCode());
+                    // Skip if instructor is already busy in this time slot
+                    if (timeSlotToInstructorIds.get(timeSlotKey).contains(assignedInstructor.getId())) {
                         continue;
                     }
 
-                    // Check if instructor is available in this time slot
-                    if (timeSlotToInstructorIds.get(timeSlotKey).contains(assignedInstructor.getId())) {
-                        continue; // Instructor already assigned in this slot
-                    }
-
-                    // Find an available room
+                    // Try to find an available room
                     for (Room room : rooms) {
+                        // Skip if room is already booked in this time slot
                         if (timeSlotToRoomIds.get(timeSlotKey).contains(room.getId())) {
-                            continue; // Room already assigned in this slot
+                            continue;
                         }
 
-                        // Assign the course
+                        // Check room compatibility with course requirements
+                        if (course.getRoomSpec() != null && !room.getRoomType().equals(course.getRoomSpec())) {
+                            continue;
+                        }
+
+                        // Create schedule result
                         ScheduleResult result = new ScheduleResult();
                         result.setCourseCodes(List.of(course.getCourseCode()));
                         result.setTimeSlots(List.of(
@@ -102,26 +140,43 @@ public class ScheduleServiceImpl implements ScheduleService {
                         ));
                         result.setRoomNames(List.of(room.getRoomName()));
                         result.setMessage("Generated for semester " + semester);
+                        result.setSemester(semester);
 
-                        // Update tracking maps
+                        // Mark resources as used
                         timeSlotToCourseIds.get(timeSlotKey).add(course.getId());
                         timeSlotToInstructorIds.get(timeSlotKey).add(assignedInstructor.getId());
                         timeSlotToRoomIds.get(timeSlotKey).add(room.getId());
 
                         results.add(result);
+                        System.out.println("Assigned course " + course.getCourseCode() + " to " +
+                                timeSlot.getDay() + " " + timeSlot.getStartTime().format(timeFormatter) +
+                                " in " + room.getRoomName());
                         assigned = true;
                         break;
                     }
                     if (assigned) break;
                 }
+
                 if (!assigned) {
-                    System.out.println("Could not assign course: " + course.getCourseCode());
-                    updateScheduleStatus(semester, "FAILED: Insufficient time slots or rooms");
+                    System.out.println("Could not assign course: " + course.getCourseCode() +
+                            " - Insufficient time slots or rooms");
+                    updateScheduleStatus(semester,
+                            "FAILED: Insufficient time slots or rooms for course " + course.getCourseCode());
                     return;
                 }
             }
 
             System.out.println("Saving " + results.size() + " schedule results");
+            // Log results for debugging
+            for (ScheduleResult result : results) {
+                System.out.println("Saving ScheduleResult: " +
+                        "courseCodes=" + result.getCourseCodes() +
+                        ", timeSlots=" + result.getTimeSlots() +
+                        ", instructorNames=" + result.getInstructorNames() +
+                        ", roomNames=" + result.getRoomNames() +
+                        ", message=" + result.getMessage() +
+                        ", semester=" + result.getSemester());
+            }
             scheduleResultRepository.saveAll(results);
             updateScheduleStatus(semester, "COMPLETED");
             System.out.println("Schedule generation completed");
@@ -157,8 +212,8 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public List<ScheduleResult> getSchedulesForLoggedInUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return scheduleResultRepository.findAll(); // Replace with student-specific logic
+        // Implement student-specific logic here
+        return scheduleResultRepository.findAll();
     }
 
     private void updateScheduleStatus(int semester, String status) {
