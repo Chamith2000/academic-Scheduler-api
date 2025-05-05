@@ -14,12 +14,11 @@ public class Section {
     @Column(name = "section_id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "course_id", nullable = false)
     @JsonManagedReference("section-course")
     private Course course;
 
     @Column(name = "number_of_classes", nullable = false)
     private int numberOfClasses;
-
 }
