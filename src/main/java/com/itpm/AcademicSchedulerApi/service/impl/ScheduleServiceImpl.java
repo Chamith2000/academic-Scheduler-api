@@ -74,9 +74,6 @@ public class ScheduleServiceImpl implements ScheduleService {
                     System.out.println("Course " + course.getCourseCode() + " has invalid instructor_id: " + instructorId);
                     updateScheduleStatus(semester, "FAILED: Invalid instructor_id for course " + course.getCourseCode());
                     return;
-                    // Optional: Skip invalid courses instead of failing
-                    // System.out.println("Skipping course " + course.getCourseCode() + " due to invalid instructor_id: " + instructorId);
-                    // continue;
                 }
             }
 
@@ -167,7 +164,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
 
             System.out.println("Saving " + results.size() + " schedule results");
-            // Log results for debugging
             for (ScheduleResult result : results) {
                 System.out.println("Saving ScheduleResult: " +
                         "courseCodes=" + result.getCourseCodes() +
@@ -203,17 +199,36 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
+    public List<ScheduleResult> getAllScheduleResultsBySemester(int semester) {
+        return scheduleResultRepository.findBySemester(semester);
+    }
+
+    @Override
     public List<ScheduleResult> getSchedulesForInstructor() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return scheduleResultRepository.findAll().stream()
-                .filter(result -> result.getInstructorNames().contains(username))
+                .filter(result -> result.getInstructorNames().stream()
+                        .anyMatch(name -> name.contains(username)))
+                .toList();
+    }
+
+    @Override
+    public List<ScheduleResult> getSchedulesForInstructorBySemester(int semester) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return scheduleResultRepository.findBySemester(semester).stream()
+                .filter(result -> result.getInstructorNames().stream()
+                        .anyMatch(name -> name.contains(username)))
                 .toList();
     }
 
     @Override
     public List<ScheduleResult> getSchedulesForLoggedInUser() {
-        // Implement student-specific logic here
         return scheduleResultRepository.findAll();
+    }
+
+    @Override
+    public List<ScheduleResult> getSchedulesForLoggedInUserBySemester(int semester) {
+        return scheduleResultRepository.findBySemester(semester);
     }
 
     private void updateScheduleStatus(int semester, String status) {
