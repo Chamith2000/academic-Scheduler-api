@@ -19,6 +19,9 @@ public class ScheduleController {
     @PostMapping("/generate")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<Void> generateSchedule(@RequestParam int semester) {
+        if (semester < 1 || semester > 2) {
+            return ResponseEntity.badRequest().build();
+        }
         scheduleService.generateSchedule(semester);
         return ResponseEntity.ok().build();
     }
@@ -26,24 +29,36 @@ public class ScheduleController {
     @GetMapping("/status")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<String> getScheduleStatus(@RequestParam int semester) {
+        if (semester < 1 || semester > 2) {
+            return ResponseEntity.badRequest().body("Invalid semester value");
+        }
         return ResponseEntity.ok(scheduleService.getScheduleStatus(semester));
     }
 
     @GetMapping("/timetables")
     @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<List<ScheduleResult>> getAllScheduleResults() {
-        return ResponseEntity.ok(scheduleService.getAllScheduleResults());
+    public ResponseEntity<List<ScheduleResult>> getAllScheduleResults(@RequestParam int semester) {
+        if (semester < 1 || semester > 2) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        return ResponseEntity.ok(scheduleService.getAllScheduleResultsBySemester(semester));
     }
 
     @GetMapping("/instructor")
     @PreAuthorize("hasAuthority('INSTRUCTOR')")
-    public ResponseEntity<List<ScheduleResult>> getSchedulesForInstructor() {
-        return ResponseEntity.ok(scheduleService.getSchedulesForInstructor());
+    public ResponseEntity<List<ScheduleResult>> getSchedulesForInstructor(@RequestParam int semester) {
+        if (semester < 1 || semester > 2) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        return ResponseEntity.ok(scheduleService.getSchedulesForInstructorBySemester(semester));
     }
 
     @GetMapping("/myTimetable")
     @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<List<ScheduleResult>> getSchedulesForLoggedInUser() {
-        return ResponseEntity.ok(scheduleService.getSchedulesForLoggedInUser());
+    public ResponseEntity<List<ScheduleResult>> getSchedulesForLoggedInUser(@RequestParam int semester) {
+        if (semester < 1 || semester > 2) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        return ResponseEntity.ok(scheduleService.getSchedulesForLoggedInUserBySemester(semester));
     }
 }
