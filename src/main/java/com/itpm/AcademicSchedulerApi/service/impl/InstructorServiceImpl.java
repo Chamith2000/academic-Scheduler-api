@@ -11,6 +11,7 @@ import com.itpm.AcademicSchedulerApi.repository.*;
 import com.itpm.AcademicSchedulerApi.service.InstructorService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
+import org.springdoc.core.SecurityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class InstructorServiceImpl implements InstructorService {
     private final AuthenticationServiceImpl authenticationService;
     private final ScheduleRepository scheduleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SectionRepository sectionRepository;
 
     // Existing methods (unchanged)
     public List<InstructorDTO> getAllInstructors() {
@@ -94,8 +96,56 @@ public class InstructorServiceImpl implements InstructorService {
     public void deleteInstructor(Long id) {
         Instructor instructor = instructorRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Instructor not found with id: " + id));
+
+        // Handle courses assigned to this instructor
+        List<Course> assignedCourses = courseRepository.findByInstructor(instructor);
+
+        // Find all schedules related to this instructor's courses
+        List<Schedule> relatedSchedules = new ArrayList<>();
+        for (Course course : assignedCourses) {
+            relatedSchedules.addAll(scheduleRepository.findByCourse(course));
+        }
+
+        // Delete all related schedules first
+        if (!relatedSchedules.isEmpty()) {
+            scheduleRepository.deleteAll(relatedSchedules);
+            scheduleRepository.flush();
+        }
+
+        // Find all sections related to this instructor's courses
+        List<Section> relatedSections = new ArrayList<>();
+        for (Course course : assignedCourses) {
+            relatedSections.addAll(sectionRepository.findByCourse(course));
+        }
+
+        // Delete all related sections
+        if (!relatedSections.isEmpty()) {
+            sectionRepository.deleteAll(relatedSections);
+            sectionRepository.flush();
+        }
+
+        // Update courses to remove instructor reference
+        if (!assignedCourses.isEmpty()) {
+            for (Course course : assignedCourses) {
+                course.setInstructor(null);
+            }
+            courseRepository.saveAll(assignedCourses);
+            courseRepository.flush();
+        }
+
+        // Clean up instructor preferences
+        instructor.getPreferences().clear();
+        instructorRepository.save(instructor);
+        instructorRepository.flush();
+
+        // Get the associated user
         User user = instructor.getUser();
+
+        // Delete the instructor
         instructorRepository.delete(instructor);
+        instructorRepository.flush();
+
+        // Delete the user if it exists
         if (user != null) {
             userRepository.delete(user);
         }

@@ -10,13 +10,19 @@ import com.itpm.AcademicSchedulerApi.service.CourseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class CourseServiceImpl implements CourseService {
+    private static final Logger logger = LoggerFactory.getLogger(CourseServiceImpl.class);
 
     private final CourseRepository courseRepository;
     private final SectionRepository sectionRepository;
@@ -35,9 +41,57 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<CourseDTO> getAllCourses() {
-        return courseRepository.findAll().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        try {
+            List<Course> courses = courseRepository.findAll();
+            logger.info("Retrieved {} courses from database", courses.size());
+            return courses.stream()
+                    .map(this::convertToDTOSafely)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error retrieving all courses", e);
+            throw new OperationFailedException("Failed to retrieve courses: " + e.getMessage(), e);
+        }
+    }
+
+    private Optional<CourseDTO> convertToDTOSafely(Course course) {
+        try {
+            CourseDTO courseDTO = new CourseDTO();
+            courseDTO.setId(course.getId());
+            courseDTO.setCourseCode(course.getCourseCode());
+            courseDTO.setCourseName(course.getCourseName());
+            courseDTO.setYear(course.getYear());
+            courseDTO.setSemester(course.getSemester());
+
+            if (course.getProgram() != null) {
+                courseDTO.setProgrammeName(course.getProgram().getName());
+            } else {
+                courseDTO.setProgrammeName("Unknown Program");
+                logger.warn("Course with ID {} has no program assigned", course.getId());
+            }
+
+            if (course.getDepartment() != null) {
+                courseDTO.setDeptName(course.getDepartment().getName());
+            } else {
+                courseDTO.setDeptName("Unknown Department");
+                logger.warn("Course with ID {} has no department assigned", course.getId());
+            }
+
+            if (course.getInstructor() != null) {
+                String firstName = course.getInstructor().getFirstName() != null ? course.getInstructor().getFirstName() : "";
+                String lastName = course.getInstructor().getLastName() != null ? course.getInstructor().getLastName() : "";
+                courseDTO.setInstructorName(firstName + " " + lastName);
+            } else {
+                courseDTO.setInstructorName("Unassigned");
+                logger.warn("Course with ID {} has no instructor assigned", course.getId());
+            }
+
+            return Optional.of(courseDTO);
+        } catch (Exception e) {
+            logger.error("Error converting course with ID {} to DTO", course.getId(), e);
+            return Optional.empty();
+        }
     }
 
     private CourseDTO convertToDTO(Course course) {
@@ -47,9 +101,27 @@ public class CourseServiceImpl implements CourseService {
         courseDTO.setCourseName(course.getCourseName());
         courseDTO.setYear(course.getYear());
         courseDTO.setSemester(course.getSemester());
-        courseDTO.setProgrammeName(course.getProgram().getName());
-        courseDTO.setDeptName(course.getDepartment().getName());
-        courseDTO.setInstructorName(course.getInstructor().getFirstName() + " " + course.getInstructor().getLastName());
+
+        if (course.getProgram() != null) {
+            courseDTO.setProgrammeName(course.getProgram().getName());
+        } else {
+            courseDTO.setProgrammeName("Unknown Program");
+        }
+
+        if (course.getDepartment() != null) {
+            courseDTO.setDeptName(course.getDepartment().getName());
+        } else {
+            courseDTO.setDeptName("Unknown Department");
+        }
+
+        if (course.getInstructor() != null) {
+            String firstName = course.getInstructor().getFirstName() != null ? course.getInstructor().getFirstName() : "";
+            String lastName = course.getInstructor().getLastName() != null ? course.getInstructor().getLastName() : "";
+            courseDTO.setInstructorName(firstName + " " + lastName);
+        } else {
+            courseDTO.setInstructorName("Unassigned");
+        }
+
         return courseDTO;
     }
 
@@ -68,7 +140,7 @@ public class CourseServiceImpl implements CourseService {
             throw new ValidationException("CourseDTO cannot be null");
         }
 
-        System.out.println(courseDto.toString());
+        logger.info("Creating new course: {}", courseDto);
 
         Course course = new Course();
         course.setCourseCode(courseDto.getCourseCode());
@@ -76,17 +148,36 @@ public class CourseServiceImpl implements CourseService {
         course.setYear(courseDto.getYear());
         course.setSemester(courseDto.getSemester());
 
-        Program program = programRepository.findByName(courseDto.getProgrammeName())
-                .orElseThrow(() -> new ResourceNotFoundException("Program", "name", courseDto.getProgrammeName()));
-        course.setProgram(program);
+        // Set program if provided
+        if (courseDto.getProgrammeName() != null && !courseDto.getProgrammeName().isEmpty()) {
+            Program program = programRepository.findByName(courseDto.getProgrammeName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Program", "name", courseDto.getProgrammeName()));
+            course.setProgram(program);
+        }
 
-        Department department = departmentRepository.findByName(courseDto.getDeptName())
-                .orElseThrow(() -> new ResourceNotFoundException("Department", "name", courseDto.getDeptName()));
-        course.setDepartment(department);
+        // Set department if provided
+        if (courseDto.getDeptName() != null && !courseDto.getDeptName().isEmpty()) {
+            Department department = departmentRepository.findByName(courseDto.getDeptName())
+                    .orElseThrow(() -> new ResourceNotFoundException("Department", "name", courseDto.getDeptName()));
+            course.setDepartment(department);
+        }
 
-        Instructor instructor = instructorRepository.findByFirstName(courseDto.getInstructorName())
-                .orElseThrow(() -> new ResourceNotFoundException("Instructor", "name", courseDto.getInstructorName()));
-        course.setInstructor(instructor);
+        // Set instructor if provided, make it optional
+        if (courseDto.getInstructorName() != null && !courseDto.getInstructorName().isEmpty()) {
+            try {
+                // This assumes instructorName is just the first name
+                // You might want to enhance this to handle full names
+                Instructor instructor = instructorRepository.findByFirstName(courseDto.getInstructorName())
+                        .orElseGet(() -> {
+                            logger.warn("Instructor not found with name: {}", courseDto.getInstructorName());
+                            return null; // Set to null if instructor not found
+                        });
+                course.setInstructor(instructor);
+            } catch (Exception e) {
+                logger.error("Error finding instructor: {}", e.getMessage());
+                // Continue without setting instructor
+            }
+        }
 
         return courseRepository.save(course);
     }
@@ -117,25 +208,54 @@ public class CourseServiceImpl implements CourseService {
         if (courseDTO.getSemester() != null) {
             course.setSemester(courseDTO.getSemester());
         }
-        if (courseDTO.getProgrammeName() != null) {
-            Program program = programRepository.findByName(courseDTO.getProgrammeName())
-                    .orElseThrow(() -> new ResourceNotFoundException("Program", "name", courseDTO.getProgrammeName()));
-            course.setProgram(program);
+
+        // Update program if provided
+        if (courseDTO.getProgrammeName() != null && !courseDTO.getProgrammeName().isEmpty()) {
+            try {
+                Program program = programRepository.findByName(courseDTO.getProgrammeName())
+                        .orElseThrow(() -> new ResourceNotFoundException("Program", "name", courseDTO.getProgrammeName()));
+                course.setProgram(program);
+            } catch (Exception e) {
+                logger.error("Error updating program: {}", e.getMessage());
+                // Continue without updating program
+            }
         }
-        if (courseDTO.getDeptName() != null) {
-            Department department = departmentRepository.findByName(courseDTO.getDeptName())
-                    .orElseThrow(() -> new ResourceNotFoundException("Department", "name", courseDTO.getDeptName()));
-            course.setDepartment(department);
+
+        // Update department if provided
+        if (courseDTO.getDeptName() != null && !courseDTO.getDeptName().isEmpty()) {
+            try {
+                Department department = departmentRepository.findByName(courseDTO.getDeptName())
+                        .orElseThrow(() -> new ResourceNotFoundException("Department", "name", courseDTO.getDeptName()));
+                course.setDepartment(department);
+            } catch (Exception e) {
+                logger.error("Error updating department: {}", e.getMessage());
+                // Continue without updating department
+            }
         }
-        if (courseDTO.getInstructorName() != null) {
-            Instructor instructor = instructorRepository.findByFirstName(courseDTO.getInstructorName())
-                    .orElseThrow(() -> new ResourceNotFoundException("Instructor", "name", courseDTO.getInstructorName()));
-            course.setInstructor(instructor);
+
+        // Update instructor if provided
+        if (courseDTO.getInstructorName() != null && !courseDTO.getInstructorName().isEmpty()) {
+            try {
+                // Try to find instructor by first name
+                Optional<Instructor> instructorOpt = instructorRepository.findByFirstName(courseDTO.getInstructorName());
+                if (instructorOpt.isPresent()) {
+                    course.setInstructor(instructorOpt.get());
+                } else {
+                    logger.warn("Instructor not found with name: {}", courseDTO.getInstructorName());
+                    // You could choose to not update the instructor in this case
+                }
+            } catch (Exception e) {
+                logger.error("Error updating instructor: {}", e.getMessage());
+                // Continue without updating instructor
+            }
         }
 
         Course updatedCourse = courseRepository.save(course);
         return convertToDTO(updatedCourse);
     }
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     @Transactional
@@ -144,27 +264,63 @@ public class CourseServiceImpl implements CourseService {
             throw new ValidationException("Course ID cannot be null");
         }
 
-        if (!courseRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Course", "id", id);
-        }
+        // Check if course exists
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Course", "id", id));
 
-        // Delete associated sections first
-        List<Section> sections = sectionRepository.findByCourseId(id);
-        if (!sections.isEmpty()) {
-            sectionRepository.deleteAll(sections);
-            // Verify sections are deleted to avoid constraint violation
-            List<Section> remainingSections = sectionRepository.findByCourseId(id);
-            if (!remainingSections.isEmpty()) {
-                throw new OperationFailedException("Failed to delete all sections for course with ID: " + id);
+        try {
+            // Use direct SQL queries with proper transaction handling
+
+            // 1. Check if there are any sections
+            List<Section> sections = sectionRepository.findByCourseId(id);
+
+            // 2. Delete sections if they exist
+            if (!sections.isEmpty()) {
+                // Use SQL for direct deletion to avoid ORM issues
+                Query sectionDeleteQuery = entityManager.createNativeQuery(
+                        "DELETE FROM sections WHERE course_id = :courseId");
+                sectionDeleteQuery.setParameter("courseId", id);
+                int deletedSections = sectionDeleteQuery.executeUpdate();
+
+                // Log the number of deleted sections for debugging
+                logger.info("Deleted {} sections for course ID: {}", deletedSections, id);
             }
-        }
 
-        // Now delete the course
-        courseRepository.deleteById(id);
+            // 3. Delete the course with direct SQL
+            Query courseDeleteQuery = entityManager.createNativeQuery(
+                    "DELETE FROM courses WHERE course_id = :courseId");
+            courseDeleteQuery.setParameter("courseId", id);
+            int deletedCourses = courseDeleteQuery.executeUpdate();
 
-        // Verify course deletion
-        if (courseRepository.existsById(id)) {
-            throw new OperationFailedException("Failed to delete course with ID: " + id);
+            // Log the result
+            logger.info("Deleted {} courses with ID: {}", deletedCourses, id);
+
+            // 4. Verify deletion was successful
+            if (deletedCourses == 0) {
+                throw new OperationFailedException("No courses were deleted with ID: " + id);
+            }
+
+            // 5. Clear the persistence context to refresh entity state
+            entityManager.flush();
+            entityManager.clear();
+
+        } catch (Exception e) {
+            // Log detailed error information
+            logger.error("Failed to delete course with ID: {}", id, e);
+
+            // Enhanced error message with more details
+            String errorMessage = "Failed to delete course with ID: " + id;
+            if (e.getMessage() != null) {
+                errorMessage += ". Cause: " + e.getMessage();
+            }
+
+            // Check for specific database constraint violations
+            if (e.getCause() != null && e.getCause().getMessage() != null &&
+                    e.getCause().getMessage().contains("foreign key constraint")) {
+                errorMessage += ". There may be related records in other tables that reference this course.";
+            }
+
+            throw new OperationFailedException(errorMessage, e);
         }
     }
 
@@ -242,10 +398,17 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<CourseDTO> getCoursesWithoutSection() {
-        return courseRepository.findAll()
-                .stream()
-                .filter(course -> sectionRepository.findByCourseId(course.getId()).isEmpty())
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        try {
+            return courseRepository.findAll()
+                    .stream()
+                    .filter(course -> sectionRepository.findByCourseId(course.getId()).isEmpty())
+                    .map(this::convertToDTOSafely)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error retrieving courses without sections", e);
+            throw new OperationFailedException("Failed to retrieve courses without sections: " + e.getMessage(), e);
+        }
     }
 }
