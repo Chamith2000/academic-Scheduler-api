@@ -13,4 +13,5 @@ public interface ScheduleService {
     List<ScheduleResult> getSchedulesForInstructorBySemesterAndYear(int semester, int year);
     List<ScheduleResult> getSchedulesForLoggedInUser();
     List<ScheduleResult> getSchedulesForLoggedInUserBySemesterAndYear(int semester, int year);
+    List<ScheduleResult> getAllSchedulesForInstructor();
 }

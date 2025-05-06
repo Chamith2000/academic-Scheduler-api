@@ -39,41 +39,62 @@ public class ScheduleController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<ScheduleResult>> getAllScheduleResults(@RequestParam int semester, @RequestParam int year) {
         System.out.println("Controller: Getting timetables for semester=" + semester + ", year=" + year);
-
         if (semester < 1 || semester > 2) {
             System.out.println("Controller: Invalid semester value " + semester);
             return ResponseEntity.badRequest().body(null);
         }
-
-        // Debug - Get all results first to check what's in the DB
         List<ScheduleResult> allResults = scheduleService.getAllScheduleResults();
         System.out.println("Controller: Total results in DB: " + allResults.size());
-
         List<ScheduleResult> results = scheduleService.getAllScheduleResultsBySemesterAndYear(semester, year);
         System.out.println("Controller: Returning " + results.size() + " results");
-
         return ResponseEntity.ok(results);
     }
 
     @GetMapping("/instructor")
     @PreAuthorize("hasAuthority('INSTRUCTOR')")
-    public ResponseEntity<List<ScheduleResult>> getSchedulesForInstructor(@RequestParam int semester, @RequestParam int year) {
-        if (semester < 1 || semester > 2) {
-            return ResponseEntity.badRequest().body(null);
+    public ResponseEntity<?> getSchedulesForInstructor(@RequestParam int semester, @RequestParam int year) {
+        try {
+            if (semester < 1 || semester > 2) {
+                return ResponseEntity.badRequest().body("Invalid semester value: must be 1 or 2");
+            }
+            List<ScheduleResult> schedules = scheduleService.getSchedulesForInstructorBySemesterAndYear(semester, year);
+            return ResponseEntity.ok(schedules);
+        } catch (Exception e) {
+            System.out.println("Error in getSchedulesForInstructor: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
         }
-        return ResponseEntity.ok(scheduleService.getSchedulesForInstructorBySemesterAndYear(semester, year));
+    }
+
+    @GetMapping("/instructor/all")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<?> getAllSchedulesForInstructor() {
+        try {
+            List<ScheduleResult> schedules = scheduleService.getAllSchedulesForInstructor();
+            return ResponseEntity.ok(schedules);
+        } catch (Exception e) {
+            System.out.println("Error in getAllSchedulesForInstructor: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
+        }
     }
 
     @GetMapping("/myTimetable")
     @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<List<ScheduleResult>> getSchedulesForLoggedInUser(@RequestParam int semester, @RequestParam int year) {
-        if (semester < 1 || semester > 2) {
-            return ResponseEntity.badRequest().body(null);
+    public ResponseEntity<?> getSchedulesForLoggedInUser(@RequestParam int semester, @RequestParam int year) {
+        try {
+            if (semester < 1 || semester > 2) {
+                return ResponseEntity.badRequest().body("Invalid semester value: must be 1 or 2");
+            }
+            List<ScheduleResult> schedules = scheduleService.getSchedulesForLoggedInUserBySemesterAndYear(semester, year);
+            return ResponseEntity.ok(schedules);
+        } catch (Exception e) {
+            System.out.println("Error in getSchedulesForLoggedInUser: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
         }
-        return ResponseEntity.ok(scheduleService.getSchedulesForLoggedInUserBySemesterAndYear(semester, year));
     }
 
-    // Debug endpoint - Get all schedule results regardless of semester/year
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<List<ScheduleResult>> getAllSchedules() {

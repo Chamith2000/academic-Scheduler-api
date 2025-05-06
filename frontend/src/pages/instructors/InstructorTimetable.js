@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { Clock, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
 import Layout from "../../Layout/InstructorDashboard";
 import { ToastContainer, toast } from "react-toastify";
@@ -10,6 +10,9 @@ import "react-toastify/dist/ReactToastify.css";
 import { Tooltip } from "react-tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import "../../styles/styles.css";
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography } from "@mui/material";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable"; // Correct import for jspdf-autotable v5.x.x
 
 const InstructorTimetable = () => {
     const { auth } = useAuth();
@@ -17,22 +20,27 @@ const InstructorTimetable = () => {
     const [timetable, setTimetable] = useState([]);
     const [timeslots, setTimeslots] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDownloading, setIsDownloading] = useState(false);
 
-    // Fetch timetable of an instructor
+    // Fetch instructor timetable
     const fetchTimetable = async () => {
         try {
-            const response = await axios.get("http://localhost:8080/api/schedule/instructor", {
+            setIsLoading(true);
+            const response = await axios.get("http://localhost:8080/api/schedule/instructor/all", {
                 headers: {
                     Authorization: `Bearer ${auth.accessToken}`,
                 },
             });
-            setTimetable(response.data);
+            setTimetable(response.data || []);
         } catch (error) {
             console.error(`Error fetching timetable: ${error}`);
             toast.error("Failed to fetch timetable");
+        } finally {
+            setIsLoading(false);
         }
     };
 
+    // Fetch timeslots
     const fetchTimeslots = async () => {
         try {
             const response = await axios.get("http://localhost:8080/api/timeslots", {
@@ -53,14 +61,82 @@ const InstructorTimetable = () => {
         }
     };
 
+    // Download timetable as Excel file
+    const downloadTimetableExcel = () => {
+        setIsDownloading(true);
+        try {
+            const excelData = [
+                ["Course", "Time Slot", "Room", "Instructor", "Semester", "Year"],
+                ...timetable.map((schedule) => [
+                    schedule.courseCodes?.join(", ") || "N/A",
+                    schedule.timeSlots?.join(", ") || "N/A",
+                    schedule.roomNames?.join(", ") || "N/A",
+                    schedule.instructorNames?.join(", ") || "N/A",
+                    schedule.semester || "N/A",
+                    schedule.year || "N/A",
+                ]),
+            ];
+
+            const worksheet = XLSX.utils.aoa_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Timetable");
+            XLSX.writeFile(workbook, "Instructor_Timetable.xlsx");
+            toast.success("Timetable downloaded successfully as Excel");
+        } catch (error) {
+            console.error(`Error downloading timetable: ${error}`);
+            toast.error("Failed to download timetable as Excel");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    // Download timetable as PDF file
+    const downloadTimetablePDF = () => {
+        setIsDownloading(true);
+        try {
+            const doc = new jsPDF();
+
+            // Add title
+            doc.setFontSize(18);
+            doc.text("Instructor Timetable", 14, 20);
+
+            // Prepare table data
+            const tableData = timetable.map((schedule) => [
+                schedule.courseCodes?.join(", ") || "N/A",
+                schedule.timeSlots?.join(", ") || "N/A",
+                schedule.roomNames?.join(", ") || "N/A",
+                schedule.instructorNames?.join(", ") || "N/A",
+                schedule.semester || "N/A",
+                schedule.year || "N/A",
+            ]);
+
+            // Generate table using autoTable
+            autoTable(doc, {
+                head: [["Course", "Time Slot", "Room", "Instructor", "Semester", "Year"]],
+                body: tableData,
+                startY: 30,
+                theme: "grid",
+                styles: { fontSize: 10 },
+                headStyles: { fillColor: [79, 70, 229] }, // Indigo color for header
+            });
+
+            // Save the PDF
+            doc.save("Instructor_Timetable.pdf");
+            toast.success("Timetable downloaded successfully as PDF");
+        } catch (error) {
+            console.error(`Error downloading timetable as PDF: ${error}`);
+            toast.error("Failed to download timetable as PDF");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            await Promise.all([fetchTimetable(), fetchTimeslots()]);
-            setIsLoading(false);
-        };
-        loadData();
-    }, []);
+        if (auth?.accessToken) {
+            fetchTimetable();
+            fetchTimeslots();
+        }
+    }, [auth]);
 
     return (
         <Layout>
@@ -82,33 +158,88 @@ const InstructorTimetable = () => {
                         <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-6 rounded-lg shadow-lg">
                             <h1 className="text-3xl font-bold">
                                 Instructor Timetable
-                                {/* Sinhala: උපදේශක කාලසටහන */}
                             </h1>
                             <p className="mt-2 text-indigo-100">
                                 View and download your weekly teaching schedule.
-                                {/* Sinhala: ඔබේ සතිපතා ඉගැන්වීමේ කාලසටහන බලන්න සහ බාගත කරන්න */}
                             </p>
                         </div>
                     </motion.div>
 
-                    {isLoading ? (
-                        <div className="animate-pulse space-y-4">
-                            <div className="h-10 bg-gray-200 rounded-lg w-full"></div>
-                            <div className="grid grid-cols-6 gap-4">
-                                {[...Array(6)].map((_, i) => (
-                                    <div key={i} className="h-8 bg-gray-200 rounded-lg w-full"></div>
-                                ))}
-                            </div>
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="grid grid-cols-6 gap-4">
-                                    {[...Array(6)].map((_, j) => (
-                                        <div key={j} className="h-16 bg-gray-200 rounded-lg w-full"></div>
-                                    ))}
+                    {/* Download Buttons */}
+                    <div className="mb-6 flex justify-end space-x-4">
+                        {/* Excel Download Button */}
+                        <motion.button
+                            onClick={downloadTimetableExcel}
+                            disabled={isLoading || isDownloading}
+                            className={`flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 ${
+                                isDownloading || isLoading ? "opacity-50 cursor-not-allowed" : "hover:from-indigo-700 hover:to-blue-700"
+                            }`}
+                            whileHover={isDownloading || isLoading ? {} : { scale: 1.05 }}
+                            whileTap={isDownloading || isLoading ? {} : { scale: 0.95 }}
+                            data-tooltip-id="download-timetable-excel"
+                            data-tooltip-content="Download your timetable as an Excel file"
+                        >
+                            {isDownloading ? (
+                                <div className="flex items-center">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                    Downloading...
                                 </div>
-                            ))}
+                            ) : (
+                                <>
+                                    <Download className="w-5 h-5 mr-2" />
+                                    Excel
+                                </>
+                            )}
+                        </motion.button>
+                        <Tooltip id="download-timetable-excel" place="top" />
+
+                        {/* PDF Download Button */}
+                        <motion.button
+                            onClick={downloadTimetablePDF}
+                            disabled={isLoading || isDownloading}
+                            className={`flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 ${
+                                isDownloading || isLoading ? "opacity-50 cursor-not-allowed" : "hover:from-indigo-700 hover:to-blue-700"
+                            }`}
+                            whileHover={isDownloading || isLoading ? {} : { scale: 1.05 }}
+                            whileTap={isDownloading || isLoading ? {} : { scale: 0.95 }}
+                            data-tooltip-id="download-timetable-pdf"
+                            data-tooltip-content="Download your timetable as a PDF file"
+                        >
+                            {isDownloading ? (
+                                <div className="flex items-center">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                    Downloading...
+                                </div>
+                            ) : (
+                                <>
+                                    <Download className="w-5 h-5 mr-2" />
+                                    PDF
+                                </>
+                            )}
+                        </motion.button>
+                        <Tooltip id="download-timetable-pdf" place="top" />
+                    </div>
+
+                    {/* Timetable Display */}
+                    {isLoading ? (
+                        <div className="text-center py-12">
+                            <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            <p className="mt-2 text-gray-600 dark:text-gray-300">Loading timetable...</p>
+                        </div>
+                    ) : timetable.length === 0 ? (
+                        <div className="text-center py-12">
+                            <p className="text-gray-600 dark:text-gray-300">No schedule found for your account.</p>
+                            <motion.button
+                                onClick={fetchTimetable}
+                                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                Retry
+                            </motion.button>
                         </div>
                     ) : (
-                        <Table data={timetable} timeslots={timeslots} />
+                        <TimetableDisplay timetable={timetable} timeslots={timeslots} />
                     )}
                 </motion.div>
             </section>
@@ -116,197 +247,140 @@ const InstructorTimetable = () => {
     );
 };
 
-const formatTimetableData = (scheduleData, uniqueTimeslots) => {
-    const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-
-    // Initialize timetable
-    let timetable = {
-        days: daysOfWeek,
-        timeslots: uniqueTimeslots,
-        schedule: {},
-    };
-
-    // Initialize schedule with empty arrays
-    daysOfWeek.forEach((day) => {
-        timetable.schedule[day] = Array(uniqueTimeslots.length).fill(null);
-    });
-
-    // Make sure we have schedule data
-    if (scheduleData) {
-        if (scheduleData.timeSlots) {
-            scheduleData.timeSlots.forEach((timeSlot, index) => {
-                const day = timeSlot.split(" ")[0];
-                const timeslotStripped = timeSlot.replace(day, "").trim();
-
-                const timetableIndex = uniqueTimeslots.indexOf(timeslotStripped);
-
-                if (timetableIndex !== -1) {
-                    timetable.schedule[day][timetableIndex] = {
-                        courseCode: scheduleData.courseCodes[index],
-                        roomName: scheduleData.roomNames[index],
-                    };
-                }
-            });
-        }
-    }
-
-    return timetable;
-};
-
-const Table = ({ data, timeslots }) => {
-    const [isDownloading, setIsDownloading] = useState(false);
-
-    // Extract unique timeslots from the timeslots prop
+// TimetableDisplay component (unchanged)
+const TimetableDisplay = ({ timetable, timeslots }) => {
+    const daysOfWeek = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ];
     const uniqueTimeslots = [...new Set(timeslots.map((timeSlot) => timeSlot.split(": ")[1]))];
 
-    // Check if data is an array and take the first element
-    const scheduleData = Array.isArray(data) ? data[0] : data;
+    const formatTimetableData = (scheduleData, uniqueTimeslots) => {
+        let formattedTimetable = {
+            days: daysOfWeek,
+            timeslots: uniqueTimeslots,
+            schedule: {},
+        };
 
-    // As there's only one timetable, we don't need to map over data
-    const timetable = formatTimetableData(scheduleData, uniqueTimeslots);
+        daysOfWeek.forEach((day) => {
+            formattedTimetable.schedule[day] = Array(uniqueTimeslots.length).fill(null).map(() => []);
+        });
 
-    // Download timetable as Excel file
-    const downloadTimetable = () => {
-        setIsDownloading(true);
-        try {
-            // Prepare data for Excel
-            const excelData = [
-                // Header row
-                ["Time Slot", ...timetable.days],
-                // Data rows
-                ...timetable.timeslots.map((timeslot, index) => [
-                    timeslot,
-                    ...timetable.days.map((day) => {
-                        const slot = timetable.schedule[day][index];
-                        return slot ? `${slot.courseCode} (${slot.roomName})` : "-";
-                    }),
-                ]),
-            ];
+        scheduleData.forEach((schedule) => {
+            schedule.timeSlots.forEach((timeSlot, index) => {
+                const splitResult = timeSlot.split(": ");
+                if (splitResult.length < 2) {
+                    console.warn(`Invalid timeSlot format: ${timeSlot}`);
+                    return;
+                }
+                let [day, timeslot] = splitResult;
+                day = day.trim().charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+                const timeslotStripped = timeslot?.trim() || "";
 
-            // Create workbook and worksheet
-            const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Timetable");
+                if (!daysOfWeek.includes(day)) {
+                    console.warn(`Invalid day: ${day}`);
+                    return;
+                }
 
-            // Generate and download Excel file
-            XLSX.writeFile(workbook, "Instructor_Timetable.xlsx");
-            toast.success("Timetable downloaded successfully");
-        } catch (error) {
-            console.error(`Error downloading timetable: ${error}`);
-            toast.error("Failed to download timetable");
-        } finally {
-            setIsDownloading(false);
-        }
+                const timetableIndex = uniqueTimeslots.indexOf(timeslotStripped);
+                if (timetableIndex === -1) {
+                    console.warn(`Timeslot not found in uniqueTimeslots: ${timeslotStripped}`);
+                    return;
+                }
+
+                formattedTimetable.schedule[day][timetableIndex].push({
+                    courseCode: schedule.courseCodes[index] || "Unknown",
+                    instructorName: schedule.instructorNames[index] || "Unknown",
+                    roomName: schedule.roomNames[index] || "Unknown",
+                });
+            });
+        });
+
+        return formattedTimetable;
     };
 
-    return (
-        <motion.div
-            className="bg-white dark:bg-gray-800 shadow-lg rounded-2xl overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-        >
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    Weekly Schedule
-                    {/* Sinhala: සතිපතා කාලසටහන */}
-                </h2>
-                <motion.button
-                    onClick={downloadTimetable}
-                    disabled={isDownloading}
-                    className={`flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 ${
-                        isDownloading ? "opacity-50 cursor-not-allowed" : "hover:from-indigo-700 hover:to-blue-700"
-                    }`}
-                    whileHover={isDownloading ? {} : { scale: 1.05 }}
-                    whileTap={isDownloading ? {} : { scale: 0.95 }}
-                    data-tooltip-id="download-timetable"
-                    data-tooltip-content="Download your timetable as an Excel file"
-                >
-                    {isDownloading ? (
-                        <div className="flex items-center">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                            Downloading...
-                        </div>
-                    ) : (
-                        <>
-                            <Download className="w-5 h-5 mr-2" />
-                            Download Timetable
-                        </>
-                    )}
-                    {/* Sinhala: {isDownloading ? "බාගත වෙමින්..." : "කාලසටහන බාගත කරන්න"} */}
-                </motion.button>
-                <Tooltip id="download-timetable" place="top" />
-            </div>
+    const getCourseColor = (courseCode) => {
+        const colors = [
+            "bg-blue-100 border-blue-300",
+            "bg-green-100 border-green-300",
+            "bg-purple-100 border-purple-300",
+            "bg-yellow-100 border-yellow-300",
+            "bg-red-100 border-red-300",
+            "bg-indigo-100 border-indigo-300",
+            "bg-pink-100 border-pink-300",
+            "bg-teal-100 border-teal-300",
+        ];
+        const index =
+            courseCode.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+        return colors[index];
+    };
 
-            <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                    <thead>
-                    <tr className="bg-gray-100 dark:bg-gray-700">
-                        <th className="p-3 border dark:border-gray-600 text-left">
-                            <div className="flex items-center">
-                                <Clock className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400" />
-                                Time Slot
-                                {/* Sinhala: කාල පරාසය */}
-                            </div>
-                        </th>
-                        {timetable.days.map((day) => (
-                            <th
-                                key={day}
-                                className="p-3 border dark:border-gray-600 text-center font-semibold text-gray-900 dark:text-gray-100"
-                            >
+    const formattedData = formatTimetableData(timetable, uniqueTimeslots);
+
+    return (
+        <TableContainer component={Paper} sx={{ maxWidth: "100%", overflowX: "auto" }}>
+            {timetable.length > 0 && timetable[0].message && (
+                <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                    {timetable[0].message}
+                </Typography>
+            )}
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        <TableCell sx={{ fontWeight: "bold" }}>Time Slot</TableCell>
+                        {formattedData.days.map((day) => (
+                            <TableCell key={day} sx={{ fontWeight: "bold" }}>
                                 {day}
-                            </th>
+                            </TableCell>
                         ))}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {timetable.timeslots.map((timeslot, index) => (
-                        <motion.tr
-                            key={timeslot}
-                            className="hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors duration-200"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.2, delay: index * 0.05 }}
-                        >
-                            <td className="p-3 border dark:border-gray-600 font-medium text-gray-900 dark:text-gray-100">
-                                {timeslot}
-                            </td>
-                            {timetable.days.map((day) => (
-                                <td
-                                    key={day}
-                                    className="p-3 border dark:border-gray-600 text-center"
-                                    data-tooltip-id={`slot-${day}-${index}`}
-                                    data-tooltip-content={
-                                        timetable.schedule[day][index]
-                                            ? `${timetable.schedule[day][index].courseCode} in ${timetable.schedule[day][index].roomName}`
-                                            : "No class scheduled"
-                                    }
-                                >
-                                    {timetable.schedule[day][index] ? (
-                                        <motion.div
-                                            className="space-y-1"
-                                            whileHover={{ scale: 1.05 }}
-                                            transition={{ duration: 0.2 }}
-                                        >
-                                            <div className="font-semibold text-indigo-600 dark:text-indigo-400">
-                                                {timetable.schedule[day][index].courseCode}
-                                            </div>
-                                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                {timetable.schedule[day][index].roomName}
-                                            </div>
-                                        </motion.div>
-                                    ) : (
-                                        <span className="text-gray-400 dark:text-gray-500">-</span>
-                                    )}
-                                    <Tooltip id={`slot-${day}-${index}`} place="top" />
-                                </td>
-                            ))}
-                        </motion.tr>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {formattedData.timeslots.map((timeslot, index) => (
+                        <TableRow key={timeslot} sx={{ bgcolor: index % 2 === 0 ? "grey.50" : "white" }}>
+                            <TableCell>{timeslot}</TableCell>
+                            {formattedData.days.map((day) => {
+                                const classDataList = formattedData.schedule[day][index];
+                                return (
+                                    <TableCell key={day} sx={{ p: 1 }}>
+                                        {classDataList.length > 0 ? (
+                                            classDataList.map((classData, idx) => (
+                                                <Box
+                                                    key={idx}
+                                                    sx={{
+                                                        p: 2,
+                                                        mb: classDataList.length - 1 === idx ? 0 : 1,
+                                                        borderRadius: 1,
+                                                        border: 1,
+                                                        borderColor: getCourseColor(classData.courseCode).split(" ")[1],
+                                                        bgcolor: getCourseColor(classData.courseCode).split(" ")[0],
+                                                    }}
+                                                >
+                                                    <Typography variant="subtitle2" fontWeight="bold">
+                                                        {classData.courseCode}
+                                                    </Typography>
+                                                    <Typography variant="body2">{classData.instructorName}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Room: {classData.roomName}
+                                                    </Typography>
+                                                </Box>
+                                            ))
+                                        ) : (
+                                            <Box sx={{ minHeight: 64 }} />
+                                        )}
+                                    </TableCell>
+                                );
+                            })}
+                        </TableRow>
                     ))}
-                    </tbody>
-                </table>
-            </div>
-        </motion.div>
+                </TableBody>
+            </Table>
+        </TableContainer>
     );
 };
 
