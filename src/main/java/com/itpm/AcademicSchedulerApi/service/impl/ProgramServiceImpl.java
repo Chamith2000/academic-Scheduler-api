@@ -1,9 +1,9 @@
 package com.itpm.AcademicSchedulerApi.service.impl;
+
+import com.itpm.AcademicSchedulerApi.controller.request.ProgramEnrollmentDTO;
 import com.itpm.AcademicSchedulerApi.controller.request.ProgrammeDTO;
-import com.itpm.AcademicSchedulerApi.model.Faculty;
-import com.itpm.AcademicSchedulerApi.model.Program;
-import com.itpm.AcademicSchedulerApi.repository.FacultyRepository;
-import com.itpm.AcademicSchedulerApi.repository.ProgramRepository;
+import com.itpm.AcademicSchedulerApi.model.*;
+import com.itpm.AcademicSchedulerApi.repository.*;
 import com.itpm.AcademicSchedulerApi.service.ProgramService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +18,9 @@ import java.util.Optional;
 public class ProgramServiceImpl implements ProgramService {
     private final ProgramRepository programRepository;
     private final FacultyRepository facultyRepository;
+    private final ProgramEnrollmentRepository programEnrollmentRepository;
+    private final StudentRepository studentRepository;
+    private final CourseRepository courseRepository;
 
     @Override
     public List<ProgrammeDTO> getAllPrograms() {
@@ -28,7 +31,7 @@ public class ProgramServiceImpl implements ProgramService {
             programDTO.setId(program.getId());
             programDTO.setProgrammeCode(program.getCode());
             programDTO.setProgrammeName(program.getName());
-            programDTO.setFacultyName(program.getFaculty().getFacultyName()); // assuming there is a getName() method in Faculty class
+            programDTO.setFacultyName(program.getFaculty().getFacultyName());
             programDTOs.add(programDTO);
         }
         return programDTOs;
@@ -36,17 +39,12 @@ public class ProgramServiceImpl implements ProgramService {
 
     @Override
     public Program createProgramme(ProgrammeDTO programmeDto) {
-        // Print the ProgrammeDTO object
-        System.out.println(programmeDto.toString());
-
         Program programme = new Program();
         programme.setCode(programmeDto.getProgrammeCode());
         programme.setName(programmeDto.getProgrammeName());
-
         Faculty faculty = facultyRepository.findByFacultyName(programmeDto.getFacultyName())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid faculty name:" + programmeDto.getFacultyName()));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid faculty name: " + programmeDto.getFacultyName()));
         programme.setFaculty(faculty);
-
         return programRepository.save(programme);
     }
 
@@ -67,7 +65,6 @@ public class ProgramServiceImpl implements ProgramService {
                     .orElseThrow(() -> new EntityNotFoundException("Faculty not found with name: " + programmeDTO.getFacultyName()));
             program.setFaculty(faculty);
             Program updatedProgram = programRepository.save(program);
-
             return new ProgrammeDTO(updatedProgram.getCode(), updatedProgram.getName(), updatedProgram.getFaculty().getFacultyName());
         } else {
             throw new EntityNotFoundException("Program not found with id: " + id);
@@ -79,4 +76,45 @@ public class ProgramServiceImpl implements ProgramService {
         programRepository.deleteById(id);
     }
 
+    @Override
+    public ProgramEnrollment enrollStudentInProgram(Long studentId, ProgramEnrollmentDTO enrollmentDTO) {
+        if (enrollmentDTO.getProgramId() == null) {
+            throw new IllegalArgumentException("Program ID cannot be null");
+        }
+        if (enrollmentDTO.getEnrollmentYear() <= 0) {
+            throw new IllegalArgumentException("Enrollment year must be a positive number");
+        }
+        if (enrollmentDTO.getEnrolledNumber() <= 0) {
+            throw new IllegalArgumentException("Enrolled number must be a positive number");
+        }
+
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new EntityNotFoundException("Student not found with id: " + studentId));
+        Program program = programRepository.findById(enrollmentDTO.getProgramId())
+                .orElseThrow(() -> new EntityNotFoundException("Program not found with id: " + enrollmentDTO.getProgramId()));
+
+        student.setProgram(program);
+        student.setYear(enrollmentDTO.getEnrollmentYear());
+        studentRepository.save(student);
+
+        Optional<ProgramEnrollment> existingEnrollment = programEnrollmentRepository.findByProgramId(enrollmentDTO.getProgramId());
+        ProgramEnrollment enrollment;
+        if (existingEnrollment.isPresent()) {
+            enrollment = existingEnrollment.get();
+            enrollment.setEnrolledNumber(enrollment.getEnrolledNumber() + 1);
+        } else {
+            enrollment = new ProgramEnrollment();
+            enrollment.setProgram(program);
+            enrollment.setYear(enrollmentDTO.getEnrollmentYear());
+            enrollment.setEnrolledNumber(enrollmentDTO.getEnrolledNumber());
+        }
+        return programEnrollmentRepository.save(enrollment);
+    }
+
+    @Override
+    public List<Course> getCoursesByProgramId(Long programId) {
+        Program program = programRepository.findById(programId)
+                .orElseThrow(() -> new EntityNotFoundException("Program not found with id: " + programId));
+        return program.getCourses();
+    }
 }

@@ -34,7 +34,7 @@ const InstructorProfile = () => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const NavItems = [
-        { icon: HiHome, label: "Dashboard", path: "/dashboard", bgGradient: "from-blue-500 to-blue-700" },
+        { icon: HiHome, label: "Dashboard", path: "/instructor-dashboard", bgGradient: "from-blue-500 to-blue-700" },
         { icon: HiCalendar, label: "Timetable", path: "/instructor-timetable", bgGradient: "from-blue-500 to-blue-700" },
         { icon: HiAcademicCap, label: "Courses", path: "/instructor-courses", bgGradient: "from-blue-500 to-blue-700" },
         { icon: HiDocumentText, label: "Reports", path: "/instructor-reports", bgGradient: "from-blue-500 to-blue-700" },

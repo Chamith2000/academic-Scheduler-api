@@ -22,18 +22,19 @@ public class SecurityConfiguration {
     private final AuthenticationProvider authenticationProvider;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf()
-                .disable()
-                .authorizeHttpRequests()
-                .requestMatchers("/api/auth/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**")
-                .permitAll()
-                .requestMatchers(String.valueOf(RequestMethod.OPTIONS), "/**")  // allow CORS option calls
-                .permitAll()
-                .anyRequest()
-                .authenticated()
-                .and()
+                .csrf().disable()
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**")
+                        .permitAll()
+                        .requestMatchers(RequestMethod.OPTIONS.name(), "/**") // Allow CORS OPTIONS calls
+                        .permitAll()
+                        .requestMatchers("/api/programs/**", "/api/students/**") // Allow access to program and student endpoints
+                        .hasAnyAuthority("ADMIN", "STUDENT") // Restrict to ADMIN and STUDENT roles
+                        .anyRequest()
+                        .authenticated()
+                )
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()

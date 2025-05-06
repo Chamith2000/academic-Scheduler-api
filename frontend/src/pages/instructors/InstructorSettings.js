@@ -28,7 +28,7 @@ const InstructorReportsPage = () => {
     const [isLoadingWorkload, setIsLoadingWorkload] = useState(false);
 
     const NavItems = [
-        { icon: HiHome, label: "Dashboard", path: "/dashboard", bgGradient: "from-indigo-600 to-blue-600", tooltip: "View your dashboard" },
+        { icon: HiHome, label: "Dashboard", path: "/instructor-dashboard", bgGradient: "from-indigo-600 to-blue-600", tooltip: "View your dashboard" },
         { icon: HiCalendar, label: "Timetable", path: "/instructor-timetable", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Check your schedule" },
         { icon: HiAcademicCap, label: "Courses", path: "/instructor-courses", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Manage your courses" },
         { icon: HiDocumentText, label: "Reports", path: "/instructor-reports", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Download reports" },

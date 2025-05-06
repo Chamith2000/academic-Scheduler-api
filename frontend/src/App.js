@@ -23,6 +23,9 @@ import InstructorCourses from "./pages/instructors/InstructorCourses";
 import InstructorProfile from "./pages/instructors/InstructorProfile";
 import InstructorSettingsPage from "./pages/instructors/InstructorReports";
 import InstructorReportsPage from "./pages/instructors/InstructorSettings";
+import StudentDashboard from "./pages/students/StudentDashboard";
+import StudentCourses from "./pages/students/StudentCourses";
+import StudentSettings from "./pages/students/StudentSettings";
 
 
 const ROLES = {
@@ -67,7 +70,8 @@ function App() {
               element={<RequireAuth allowedRoles={[ROLES.instructor,ROLES.student]} />}
           >
             <Route path="student-timetable" element={<StudentTimetable />} />
-            <Route path="dashboard" element={<InstructorDashboardPage />} />
+            <Route path="student-dashboard" element={<StudentDashboard />} />
+            <Route path="instructor-dashboard" element={<InstructorDashboardPage />} />
             <Route path="settings" element={<InstructorSettingsPage />} />
             <Route path="instructor-reports" element={<InstructorReportsPage />} />
             <Route
@@ -85,6 +89,10 @@ function App() {
             <Route path="department" element={<Department />} />
             <Route path="section" element={<Section />} />
 
+          </Route>
+          <Route element={<RequireAuth allowedRoles={[ROLES.student]} />}>
+            <Route path="student-courses" element={<StudentCourses />} />
+            <Route path="student-settings" element={<StudentSettings />} />
           </Route>
           end of protected routes
         </Route>
