@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface ScheduleStatusRepository extends JpaRepository<ScheduleStatus, Long> {
     Optional<ScheduleStatus> findBySemester(int semester);
     Optional<ScheduleStatus> findTopBySemesterOrderByIdDesc(int semester);
+    Optional<ScheduleStatus> findBySemesterAndYear(int semester, int year);
 }

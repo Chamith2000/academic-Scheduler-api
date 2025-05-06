@@ -9,45 +9,42 @@ import {
     CircularProgress,
     Alert,
     Table,
-    TableBody,
-    TableCell,
     TableContainer,
-    TableHead,
-    TableRow,
     Paper,
-    Modal,
-    Fade,
     Select,
     MenuItem,
     FormControl,
     InputLabel,
+    TableHead,
+    TableRow,
+    TableCell,
+    TableBody,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import AuthContext from "../context/AuthProvider";
 import Filter from "../components/Filter";
 import DashboardLayout from "../Layout/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-    HiRefresh,
-    HiCalendar,
-    HiAcademicCap,
-    HiCog,
-    HiDocumentText
-} from "react-icons/hi";
+import { HiCalendar, HiAcademicCap, HiRefresh } from "react-icons/hi";
 import { Tooltip } from "react-tooltip";
 
 const Home = () => {
     const { auth } = useContext(AuthContext);
     const [semester, setSemester] = useState(1);
+    const [academicYear, setAcademicYear] = useState(1); // Default to Year 1
     const [timetables, setTimetables] = useState([]);
     const [originalData, setOriginalData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
+    const [isReset, setIsReset] = useState(false);
     const [timeslots, setTimeslots] = useState([]);
-    const [resetLoading, setResetLoading] = useState(false);
-    const [showResetModal, setShowResetModal] = useState(false);
     const [error, setError] = useState("");
     const navigate = useNavigate();
+
+    // Validate academic year input
+    const isValidAcademicYear = (year) => {
+        return [1, 2, 3, 4].includes(year);
+    };
 
     useEffect(() => {
         if (!auth.accessToken) {
@@ -77,13 +74,67 @@ const Home = () => {
             });
     };
 
-    const generateTimetable = (event) => {
-        event.preventDefault();
+    const resetTimetable = () => {
         setLoading(true);
         setError("");
         axios
             .post(
-                `http://localhost:8080/api/schedule/generate?semester=${semester}`,
+                "http://localhost:8080/reset", // Corrected endpoint URL - removed /api prefix
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${auth.accessToken}`,
+                    },
+                }
+            )
+            .then(() => {
+                setLoading(false);
+                setIsReset(true);
+                setTimeout(() => {
+                    setIsReset(false);
+                    // Reset the timetables display
+                    setTimetables([]);
+                    setOriginalData([]);
+                }, 1500);
+            })
+            .catch((error) => {
+                // Improved error handling
+                let errorMessage = "Failed to reset timetable: ";
+
+                if (error.response && error.response.data) {
+                    // If there's a response with data from the server
+                    if (typeof error.response.data === 'object') {
+                        // If the data is an object, try to extract a message
+                        errorMessage += error.response.data.message || JSON.stringify(error.response.data);
+                    } else {
+                        // If data is a string or other primitive
+                        errorMessage += error.response.data;
+                    }
+                } else if (error.message) {
+                    // If there's an error message but no response data
+                    errorMessage += error.message;
+                } else {
+                    // Fallback if neither exists
+                    errorMessage += "Unknown error";
+                }
+
+                setError(errorMessage);
+                console.error(`Error: ${JSON.stringify(error)}`);
+                setLoading(false);
+            });
+    };
+
+    const generateTimetable = (event) => {
+        event.preventDefault();
+        if (!isValidAcademicYear(academicYear)) {
+            setError("Please select a valid academic year (1, 2, 3, or 4)");
+            return;
+        }
+        setLoading(true);
+        setError("");
+        axios
+            .post(
+                `http://localhost:8080/api/schedule/generate?semester=${semester}&year=${academicYear}`,
                 {},
                 {
                     headers: {
@@ -97,7 +148,7 @@ const Home = () => {
                 let intervalId = setInterval(() => {
                     axios
                         .get(
-                            `http://localhost:8080/api/schedule/status?semester=${semester}`,
+                            `http://localhost:8080/api/schedule/status?semester=${semester}&year=${academicYear}`,
                             {
                                 headers: {
                                     Authorization: `Bearer ${auth.accessToken}`,
@@ -134,19 +185,27 @@ const Home = () => {
                 }, 5000);
             })
             .catch((error) => {
-                setError("Failed to start timetable generation: " + (error.message || "Unknown error"));
+                const errorMessage =
+                    error.response?.data ||
+                    error.message ||
+                    "Unknown error";
+                setError("Failed to start timetable generation: " + errorMessage);
                 console.error(`Error: ${error}`);
                 setLoading(false);
             });
     };
 
     const fetchTimetables = () => {
+        if (!isValidAcademicYear(academicYear)) {
+            setError("Please select a valid academic year (1, 2, 3, or 4)");
+            return;
+        }
         const endpoint =
             auth.role === "STUDENT"
-                ? `http://localhost:8080/api/schedule/myTimetable?semester=${semester}`
+                ? `http://localhost:8080/api/schedule/myTimetable?semester=${semester}&year=${academicYear}`
                 : auth.role === "INSTRUCTOR"
-                    ? `http://localhost:8080/api/schedule/instructor?semester=${semester}`
-                    : `http://localhost:8080/api/schedule/timetables?semester=${semester}`;
+                    ? `http://localhost:8080/api/schedule/instructor?semester=${semester}&year=${academicYear}`
+                    : `http://localhost:8080/api/schedule/timetables?semester=${semester}&year=${academicYear}`;
 
         axios
             .get(endpoint, {
@@ -160,47 +219,17 @@ const Home = () => {
                 setOriginalData(response.data);
             })
             .catch((error) => {
+                let errorMessage = "Failed to fetch timetables: ";
                 if (error.response?.status === 404) {
-                    setError("Timetables endpoint not found. Please check the backend configuration.");
+                    errorMessage += "Timetables endpoint not found. Please check the backend configuration.";
                 } else if (error.response?.status === 400) {
-                    setError("Invalid semester value. Please select Semester 1 or 2.");
+                    errorMessage += error.response.data || "Invalid semester or academic year value.";
                 } else {
-                    setError("Failed to fetch timetables: " + (error.message || "Unknown error"));
+                    errorMessage += error.message || "Unknown error";
                 }
+                setError(errorMessage);
                 console.error(`Error: ${error}`);
             });
-    };
-
-    const handleHardReset = () => {
-        setShowResetModal(true);
-    };
-
-    const confirmHardReset = () => {
-        setResetLoading(true);
-        setShowResetModal(false);
-        axios
-            .post("http://localhost:8080/reset", null, {
-                headers: {
-                    Authorization: `Bearer ${auth.accessToken}`,
-                },
-            })
-            .then(() => {
-                setResetLoading(false);
-                setIsCompleted(true);
-                setTimeout(() => {
-                    fetchTimetables();
-                    setIsCompleted(false);
-                }, 1500);
-            })
-            .catch((error) => {
-                setError("Failed to reset schedules: " + (error.message || "Unknown error"));
-                console.error(`Error: ${error}`);
-                setResetLoading(false);
-            });
-    };
-
-    const cancelReset = () => {
-        setShowResetModal(false);
     };
 
     const handleFilter = (filters) => {
@@ -254,13 +283,13 @@ const Home = () => {
             fetchTimetables();
             fetchTimeslots();
         }
-    }, [auth.accessToken, auth.role, semester]);
+    }, [auth.accessToken, auth.role, semester, academicYear]);
 
     return (
         <DashboardLayout>
             <div className="min-h-screen p-6 bg-gradient-to-br from-indigo-50 to-blue-100 dark:from-gray-900 dark:to-neutral-800">
                 {/* Loading/Success Overlay */}
-                {(loading || isCompleted) && (
+                {(loading || isCompleted || isReset) && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <motion.div
                             className="bg-white dark:bg-gray-800 p-8 rounded-xl text-center shadow-xl"
@@ -270,45 +299,21 @@ const Home = () => {
                         >
                             {isCompleted ? (
                                 <div className="text-6xl text-green-500 mb-4">✓</div>
+                            ) : isReset ? (
+                                <div className="text-6xl text-green-500 mb-4">✓</div>
                             ) : (
                                 <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
                             )}
                             <p className="text-lg font-medium text-gray-800 dark:text-white mt-4">
-                                {isCompleted ? "Successfully generated timetables!" : "Generating timetables..."}
+                                {isCompleted
+                                    ? "Successfully generated timetables!"
+                                    : isReset
+                                        ? "Successfully reset timetables!"
+                                        : "Processing your request..."}
                             </p>
                         </motion.div>
                     </div>
                 )}
-
-                {/* Reset Modal */}
-                <Modal open={showResetModal} onClose={cancelReset}>
-                    <Fade in={showResetModal}>
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-md">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Confirm Reset</h3>
-                            <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                Are you sure you want to reset all schedules? This action cannot be undone.
-                            </p>
-                            <div className="flex justify-end gap-4">
-                                <motion.button
-                                    onClick={cancelReset}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-medium"
-                                    whileHover={{ scale: 1.03 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    Cancel
-                                </motion.button>
-                                <motion.button
-                                    onClick={confirmHardReset}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium shadow-md"
-                                    whileHover={{ scale: 1.03, boxShadow: "0 5px 15px rgba(239, 68, 68, 0.3)" }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    Reset
-                                </motion.button>
-                            </div>
-                        </div>
-                    </Fade>
-                </Modal>
 
                 <AnimatePresence>
                     <motion.div
@@ -330,7 +335,6 @@ const Home = () => {
                                 <p className="mt-2 text-indigo-100">
                                     Manage your academic timetables efficiently with Academic Scheduler.
                                 </p>
-                                {/* Error message displayed immediately under the header */}
                                 {error && (
                                     <motion.div
                                         className="mt-4 text-white border-l-4 border-white pl-3"
@@ -358,9 +362,9 @@ const Home = () => {
                             >
                                 <div className="flex items-center mb-4">
                                     <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
-                                        <HiDocumentText className="w-6 h-6" />
+                                        <HiCalendar className="w-6 h-6" />
                                     </div>
-                                    <h2 className="ml-3 text-xl font-semibold text-gray-800 dark:text-white">Generate Timetable</h2>
+                                    <h2 className="ml-3 text-xl font-semibold text-gray-800 dark:text-white">Timetable Actions</h2>
                                 </div>
 
                                 <div className="flex flex-wrap gap-4 items-end">
@@ -380,6 +384,24 @@ const Home = () => {
                                         </FormControl>
                                     </div>
 
+                                    <div className="w-48">
+                                        <FormControl fullWidth>
+                                            <InputLabel>Academic Year</InputLabel>
+                                            <Select
+                                                value={academicYear}
+                                                label="Academic Year"
+                                                onChange={(e) => setAcademicYear(parseInt(e.target.value))}
+                                                disabled={loading}
+                                                className="bg-gray-50 dark:bg-gray-700"
+                                            >
+                                                <MenuItem value={1}>Year 1</MenuItem>
+                                                <MenuItem value={2}>Year 2</MenuItem>
+                                                <MenuItem value={3}>Year 3</MenuItem>
+                                                <MenuItem value={4}>Year 4</MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                    </div>
+
                                     <motion.button
                                         onClick={generateTimetable}
                                         disabled={loading}
@@ -387,23 +409,23 @@ const Home = () => {
                                         whileHover={{ scale: 1.05, boxShadow: "0 5px 15px rgba(79, 70, 229, 0.4)" }}
                                         whileTap={{ scale: 0.95 }}
                                         data-tooltip-id="generate-tooltip"
-                                        data-tooltip-content="Create new timetable for selected semester"
+                                        data-tooltip-content="Create new timetable for selected semester and academic year"
                                     >
                                         <HiCalendar className="mr-2 h-5 w-5" />
                                         Generate Timetable
                                     </motion.button>
 
                                     <motion.button
-                                        onClick={handleHardReset}
-                                        disabled={resetLoading}
-                                        className="flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={resetTimetable}
+                                        disabled={loading}
+                                        className="flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                                         whileHover={{ scale: 1.05, boxShadow: "0 5px 15px rgba(239, 68, 68, 0.4)" }}
                                         whileTap={{ scale: 0.95 }}
                                         data-tooltip-id="reset-tooltip"
-                                        data-tooltip-content="Reset all schedule data"
+                                        data-tooltip-content="Reset all timetables"
                                     >
                                         <HiRefresh className="mr-2 h-5 w-5" />
-                                        Reset Schedules
+                                        Reset Timetable
                                     </motion.button>
 
                                     <Tooltip id="generate-tooltip" place="top" />
@@ -412,7 +434,7 @@ const Home = () => {
                             </motion.div>
                         )}
 
-                        {/* Semester Selector */}
+                        {/* Semester and Academic Year Selector */}
                         <motion.div
                             className="mb-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl hover:shadow-2xl transition-shadow duration-300"
                             whileHover={{ scale: 1.01 }}
@@ -425,19 +447,38 @@ const Home = () => {
                                 <h2 className="ml-3 text-xl font-semibold text-gray-800 dark:text-white">View Timetable</h2>
                             </div>
 
-                            <div className="w-48">
-                                <FormControl fullWidth>
-                                    <InputLabel>Semester</InputLabel>
-                                    <Select
-                                        value={semester}
-                                        label="Semester"
-                                        onChange={(e) => setSemester(parseInt(e.target.value))}
-                                        className="bg-gray-50 dark:bg-gray-700"
-                                    >
-                                        <MenuItem value={1}>Semester 1</MenuItem>
-                                        <MenuItem value={2}>Semester 2</MenuItem>
-                                    </Select>
-                                </FormControl>
+                            <div className="flex flex-wrap gap-4">
+                                <div className="w-48">
+                                    <FormControl fullWidth>
+                                        <InputLabel>Semester</InputLabel>
+                                        <Select
+                                            value={semester}
+                                            label="Semester"
+                                            onChange={(e) => setSemester(parseInt(e.target.value))}
+                                            className="bg-gray-50 dark:bg-gray-700"
+                                        >
+                                            <MenuItem value={1}>Semester 1</MenuItem>
+                                            <MenuItem value={2}>Semester 2</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </div>
+
+                                <div className="w-48">
+                                    <FormControl fullWidth>
+                                        <InputLabel>Academic Year</InputLabel>
+                                        <Select
+                                            value={academicYear}
+                                            label="Academic Year"
+                                            onChange={(e) => setAcademicYear(parseInt(e.target.value))}
+                                            className="bg-gray-50 dark:bg-gray-700"
+                                        >
+                                            <MenuItem value={1}>Year 1</MenuItem>
+                                            <MenuItem value={2}>Year 2</MenuItem>
+                                            <MenuItem value={3}>Year 3</MenuItem>
+                                            <MenuItem value={4}>Year 4</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </div>
                             </div>
                         </motion.div>
 
@@ -455,10 +496,10 @@ const Home = () => {
                                     </div>
                                     <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
                                         {auth.role === "ADMIN"
-                                            ? `Semester ${semester} Timetable`
+                                            ? `Semester ${semester} Year ${academicYear} Timetable`
                                             : auth.role === "INSTRUCTOR"
-                                                ? `Your Semester ${semester} Timetable`
-                                                : `Your Semester ${semester} Student Timetable`}
+                                                ? `Your Semester ${semester} Year ${academicYear} Timetable`
+                                                : `Your Semester ${semester} Year ${academicYear} Student Timetable`}
                                     </h2>
                                 </div>
 
@@ -493,12 +534,11 @@ const Home = () => {
                                         </svg>
                                     </div>
                                     <p className="text-gray-600 dark:text-gray-300 text-lg">
-                                        No timetables available for Semester {semester}.
+                                        No timetables available for Semester {semester} Year {academicYear}.
                                         {auth.role === "ADMIN" && " Generate one to get started."}
                                     </p>
                                 </motion.div>
                             ) : (
-                                // Keep timetable display as is
                                 <TimetableDisplay timetable={timetables} timeslots={timeslots} />
                             )}
                         </motion.div>
@@ -509,7 +549,7 @@ const Home = () => {
     );
 };
 
-// Kept TimetableDisplay component unchanged as per request
+// TimetableDisplay component
 const TimetableDisplay = ({ timetable, timeslots }) => {
     const daysOfWeek = [
         "Monday",
@@ -529,16 +569,13 @@ const TimetableDisplay = ({ timetable, timeslots }) => {
             schedule: {},
         };
 
+        // Initialize schedule for each day with arrays to hold multiple entries
         daysOfWeek.forEach((day) => {
-            formattedTimetable.schedule[day] = Array(uniqueTimeslots.length).fill(null);
+            formattedTimetable.schedule[day] = Array(uniqueTimeslots.length).fill(null).map(() => []);
         });
-
-        console.log("Schedule Data:", scheduleData);
-        console.log("Unique Timeslots:", uniqueTimeslots);
 
         scheduleData.forEach((schedule) => {
             schedule.timeSlots.forEach((timeSlot, index) => {
-                console.log("Processing timeSlot:", timeSlot);
                 const splitResult = timeSlot.split(": ");
                 if (splitResult.length < 2) {
                     console.warn(`Invalid timeSlot format: ${timeSlot}`);
@@ -559,15 +596,15 @@ const TimetableDisplay = ({ timetable, timeslots }) => {
                     return;
                 }
 
-                formattedTimetable.schedule[day][timetableIndex] = {
+                // Add the entry to the array for this day and timeslot
+                formattedTimetable.schedule[day][timetableIndex].push({
                     courseCode: schedule.courseCodes[index] || "Unknown",
                     instructorName: schedule.instructorNames[index] || "Unknown",
                     roomName: schedule.roomNames[index] || "Unknown",
-                };
+                });
             });
         });
 
-        console.log("Formatted Timetable:", formattedTimetable);
         return formattedTimetable;
     };
 
@@ -612,27 +649,31 @@ const TimetableDisplay = ({ timetable, timeslots }) => {
                         <TableRow key={timeslot} sx={{ bgcolor: index % 2 === 0 ? "grey.50" : "white" }}>
                             <TableCell>{timeslot}</TableCell>
                             {formattedData.days.map((day) => {
-                                const classData = formattedData.schedule[day][index];
+                                const classDataList = formattedData.schedule[day][index];
                                 return (
                                     <TableCell key={day} sx={{ p: 1 }}>
-                                        {classData ? (
-                                            <Box
-                                                sx={{
-                                                    p: 2,
-                                                    borderRadius: 1,
-                                                    border: 1,
-                                                    borderColor: getCourseColor(classData.courseCode).split(" ")[1],
-                                                    bgcolor: getCourseColor(classData.courseCode).split(" ")[0],
-                                                }}
-                                            >
-                                                <Typography variant="subtitle2" fontWeight="bold">
-                                                    {classData.courseCode}
-                                                </Typography>
-                                                <Typography variant="body2">{classData.instructorName}</Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    Room: {classData.roomName}
-                                                </Typography>
-                                            </Box>
+                                        {classDataList.length > 0 ? (
+                                            classDataList.map((classData, idx) => (
+                                                <Box
+                                                    key={idx}
+                                                    sx={{
+                                                        p: 2,
+                                                        mb: classDataList.length - 1 === idx ? 0 : 1,
+                                                        borderRadius: 1,
+                                                        border: 1,
+                                                        borderColor: getCourseColor(classData.courseCode).split(" ")[1],
+                                                        bgcolor: getCourseColor(classData.courseCode).split(" ")[0],
+                                                    }}
+                                                >
+                                                    <Typography variant="subtitle2" fontWeight="bold">
+                                                        {classData.courseCode}
+                                                    </Typography>
+                                                    <Typography variant="body2">{classData.instructorName}</Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Room: {classData.roomName}
+                                                    </Typography>
+                                                </Box>
+                                            ))
                                         ) : (
                                             <Box sx={{ minHeight: 64 }} />
                                         )}

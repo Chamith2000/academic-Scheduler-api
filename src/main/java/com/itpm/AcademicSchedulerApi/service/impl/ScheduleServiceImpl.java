@@ -26,13 +26,13 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ProgramRepository programmeRepository;
 
     @Override
-    public void generateSchedule(int semester) {
+    public void generateSchedule(int semester, int year) {
         try {
-            System.out.println("Starting schedule generation for semester: " + semester);
-            updateScheduleStatus(semester, "PENDING");
+            System.out.println("Starting schedule generation for semester: " + semester + ", year: " + year);
+            updateScheduleStatus(semester, year, "PENDING");
 
             // Fetch data
-            List<Course> courses = courseRepository.findBySemester(semester);
+            List<Course> courses = courseRepository.findBySemesterAndYear(semester, year);
             List<TimeSlot> timeSlots = timeSlotRepository.findAll();
             List<Room> rooms = roomRepository.findAll();
             List<Instructor> instructors = instructorRepository.findAll();
@@ -44,7 +44,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             if (courses.isEmpty() || timeSlots.isEmpty() || rooms.isEmpty() || instructors.isEmpty()) {
                 System.out.println("Missing data detected");
-                updateScheduleStatus(semester, "FAILED: Missing data");
+                updateScheduleStatus(semester, year, "FAILED: Missing data");
                 return;
             }
 
@@ -62,7 +62,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                         (course.getInstructor() != null ? course.getInstructor().getId() : "null"));
                 if (course.getInstructor() == null) {
                     System.out.println("Course " + course.getCourseCode() + " has no assigned instructor.");
-                    updateScheduleStatus(semester, "FAILED: Course " + course.getCourseCode() + " has no assigned instructor");
+                    updateScheduleStatus(semester, year, "FAILED: Course " + course.getCourseCode() + " has no assigned instructor");
                     return;
                 }
 
@@ -72,7 +72,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
                 if (!instructorExists) {
                     System.out.println("Course " + course.getCourseCode() + " has invalid instructor_id: " + instructorId);
-                    updateScheduleStatus(semester, "FAILED: Invalid instructor_id for course " + course.getCourseCode());
+                    updateScheduleStatus(semester, year, "FAILED: Invalid instructor_id for course " + course.getCourseCode());
                     return;
                 }
             }
@@ -93,7 +93,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 Instructor assignedInstructor = course.getInstructor();
                 if (assignedInstructor == null) {
                     System.out.println("No instructor found for course: " + course.getCourseCode());
-                    updateScheduleStatus(semester, "FAILED: No instructor found for course " + course.getCourseCode());
+                    updateScheduleStatus(semester, year, "FAILED: No instructor found for course " + course.getCourseCode());
                     return;
                 }
 
@@ -136,8 +136,9 @@ public class ScheduleServiceImpl implements ScheduleService {
                                 assignedInstructor.getFirstName() + " " + assignedInstructor.getLastName()
                         ));
                         result.setRoomNames(List.of(room.getRoomName()));
-                        result.setMessage("Generated for semester " + semester);
+                        result.setMessage("Generated for semester " + semester + ", year " + year);
                         result.setSemester(semester);
+                        result.setYear(year); // Ensure year is properly set
 
                         // Mark resources as used
                         timeSlotToCourseIds.get(timeSlotKey).add(course.getId());
@@ -157,7 +158,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                 if (!assigned) {
                     System.out.println("Could not assign course: " + course.getCourseCode() +
                             " - Insufficient time slots or rooms");
-                    updateScheduleStatus(semester,
+                    updateScheduleStatus(semester, year,
                             "FAILED: Insufficient time slots or rooms for course " + course.getCourseCode());
                     return;
                 }
@@ -171,10 +172,11 @@ public class ScheduleServiceImpl implements ScheduleService {
                         ", instructorNames=" + result.getInstructorNames() +
                         ", roomNames=" + result.getRoomNames() +
                         ", message=" + result.getMessage() +
-                        ", semester=" + result.getSemester());
+                        ", semester=" + result.getSemester() +
+                        ", year=" + result.getYear());
             }
             scheduleResultRepository.saveAll(results);
-            updateScheduleStatus(semester, "COMPLETED");
+            updateScheduleStatus(semester, year, "COMPLETED");
             System.out.println("Schedule generation completed");
         } catch (Exception e) {
             String errorMessage = "FAILED: " + e.getMessage();
@@ -182,25 +184,51 @@ public class ScheduleServiceImpl implements ScheduleService {
                 errorMessage = errorMessage.substring(0, 252) + "...";
             }
             System.out.println("Error during schedule generation: " + errorMessage);
-            updateScheduleStatus(semester, errorMessage);
+            updateScheduleStatus(semester, year, errorMessage);
         }
     }
 
     @Override
-    public String getScheduleStatus(int semester) {
-        return scheduleStatusRepository.findBySemester(semester)
+    public String getScheduleStatus(int semester, int year) {
+        return scheduleStatusRepository.findBySemesterAndYear(semester, year)
                 .map(ScheduleStatus::getStatus)
                 .orElse("PENDING");
     }
 
     @Override
     public List<ScheduleResult> getAllScheduleResults() {
-        return scheduleResultRepository.findAll();
+        List<ScheduleResult> allResults = scheduleResultRepository.findAll();
+        System.out.println("Total results in DB: " + allResults.size());
+        if (!allResults.isEmpty()) {
+            ScheduleResult firstResult = allResults.get(0);
+            System.out.println("Sample result: semester=" + firstResult.getSemester() +
+                    ", year=" + firstResult.getYear() +
+                    ", courseCodes=" + firstResult.getCourseCodes());
+        }
+        return allResults;
     }
 
     @Override
-    public List<ScheduleResult> getAllScheduleResultsBySemester(int semester) {
-        return scheduleResultRepository.findBySemester(semester);
+    public List<ScheduleResult> getAllScheduleResultsBySemesterAndYear(int semester, int year) {
+        System.out.println("Searching for schedules with semester=" + semester + ", year=" + year);
+
+        // Debug - Get all results first to see what's in the DB
+        List<ScheduleResult> allResults = scheduleResultRepository.findAll();
+        System.out.println("Total results in DB: " + allResults.size());
+
+        // Print details of all results
+        for (ScheduleResult result : allResults) {
+            System.out.println("DB Result: id=" + result.getId() +
+                    ", semester=" + result.getSemester() +
+                    ", year=" + result.getYear() +
+                    ", courseCodes=" + result.getCourseCodes());
+        }
+
+        // Try to get the filtered results, accounting for possibly null years in the database
+        List<ScheduleResult> results = scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
+        System.out.println("Found " + results.size() + " results for semester=" + semester + ", year=" + year);
+
+        return results;
     }
 
     @Override
@@ -213,9 +241,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public List<ScheduleResult> getSchedulesForInstructorBySemester(int semester) {
+    public List<ScheduleResult> getSchedulesForInstructorBySemesterAndYear(int semester, int year) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return scheduleResultRepository.findBySemester(semester).stream()
+        return scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year).stream()
                 .filter(result -> result.getInstructorNames().stream()
                         .anyMatch(name -> name.contains(username)))
                 .toList();
@@ -227,12 +255,12 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public List<ScheduleResult> getSchedulesForLoggedInUserBySemester(int semester) {
-        return scheduleResultRepository.findBySemester(semester);
+    public List<ScheduleResult> getSchedulesForLoggedInUserBySemesterAndYear(int semester, int year) {
+        return scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
     }
 
-    private void updateScheduleStatus(int semester, String status) {
-        Optional<ScheduleStatus> existingStatus = scheduleStatusRepository.findBySemester(semester);
+    private void updateScheduleStatus(int semester, int year, String status) {
+        Optional<ScheduleStatus> existingStatus = scheduleStatusRepository.findBySemesterAndYear(semester, year);
         ScheduleStatus scheduleStatus;
         if (existingStatus.isPresent()) {
             scheduleStatus = existingStatus.get();
@@ -240,6 +268,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         } else {
             scheduleStatus = new ScheduleStatus();
             scheduleStatus.setSemester(semester);
+            scheduleStatus.setYear(year);
             scheduleStatus.setStatus(status);
         }
         scheduleStatusRepository.save(scheduleStatus);

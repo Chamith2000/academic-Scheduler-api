@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findBySemester(int semester);
+    List<Course> findBySemesterAndYear(int semester, int year);
     List<Course> findBySemesterAndYearAndProgram(int semester, int year, Program program);
 
     Optional<Course> findByCourseName(String courseName);
