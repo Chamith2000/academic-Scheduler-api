@@ -5,6 +5,8 @@ import com.itpm.AcademicSchedulerApi.model.Course;
 import com.itpm.AcademicSchedulerApi.model.Instructor;
 import com.itpm.AcademicSchedulerApi.model.Program;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,5 +21,10 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     Optional<Course> findByCourseName(String courseName);
     List<Course> findByInstructor(Instructor instructor);
+
+    @Query("SELECT c FROM Course c WHERE c.instructor.id = :instructorId AND c.semester = :semester AND c.year = :year")
+    List<Course> findByInstructorIdAndSemesterAndYear(@Param("instructorId") Long instructorId,
+                                                      @Param("semester") int semester,
+                                                      @Param("year") int year);
 
 }

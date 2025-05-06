@@ -26,12 +26,64 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ProgramRepository programmeRepository;
 
     @Override
+    public List<ScheduleResult> getAllSchedulesForInstructor() {
+        try {
+            // Get the authenticated user's username
+            String username = SecurityContextHolder.getContext().getAuthentication() != null
+                    ? SecurityContextHolder.getContext().getAuthentication().getName()
+                    : null;
+            if (username == null) {
+                System.out.println("No authenticated user found for instructor schedule request");
+                return Collections.emptyList();
+            }
+            System.out.println("Fetching all schedules for instructor with username: " + username);
+
+            // Fetch the instructor by username
+            Optional<Instructor> instructorOpt = instructorRepository.findByUserUsername(username);
+            if (instructorOpt.isEmpty()) {
+                System.out.println("No instructor found for username: " + username);
+                return Collections.emptyList();
+            }
+            Instructor instructor = instructorOpt.get();
+            String fullName = instructor.getFirstName() + " " + instructor.getLastName();
+            System.out.println("Instructor full name: " + fullName);
+
+            // Fetch all schedule results
+            List<ScheduleResult> results = scheduleResultRepository.findAll();
+            System.out.println("Total schedule results found: " + results.size());
+
+            // Filter schedules where the instructor's full name is in instructor_names
+            List<ScheduleResult> filteredResults = results.stream()
+                    .filter(result -> {
+                        List<String> instructorNames = result.getInstructorNames();
+                        if (instructorNames == null || instructorNames.isEmpty()) {
+                            System.out.println("ScheduleResult id=" + result.getId() + " has null or empty instructorNames");
+                            return false;
+                        }
+                        boolean matches = instructorNames.stream()
+                                .anyMatch(name -> name != null && name.equalsIgnoreCase(fullName));
+                        if (matches) {
+                            System.out.println("Match found for ScheduleResult id=" + result.getId() + ", courseCodes=" + result.getCourseCodes());
+                        }
+                        return matches;
+                    })
+                    .collect(Collectors.toList());
+
+            System.out.println("Found " + filteredResults.size() + " schedules for instructor: " + fullName);
+            return filteredResults;
+        } catch (Exception e) {
+            System.out.println("Error fetching all instructor schedules: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
     public void generateSchedule(int semester, int year) {
         try {
             System.out.println("Starting schedule generation for semester: " + semester + ", year: " + year);
             updateScheduleStatus(semester, year, "PENDING");
 
-            // Fetch data
             List<Course> courses = courseRepository.findBySemesterAndYear(semester, year);
             List<TimeSlot> timeSlots = timeSlotRepository.findAll();
             List<Room> rooms = roomRepository.findAll();
@@ -48,7 +100,6 @@ public class ScheduleServiceImpl implements ScheduleService {
                 return;
             }
 
-            // Cache sections and programmes
             Map<Long, List<Section>> courseSections = new HashMap<>();
             for (Course course : courses) {
                 courseSections.put(course.getId(), sectionRepository.findByCourseId(course.getId()));
@@ -56,7 +107,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             Map<Long, Program> programmeMap = programmes.stream()
                     .collect(Collectors.toMap(Program::getId, p -> p));
 
-            // Validate courses - check instructor assignments
             for (Course course : courses) {
                 System.out.println("Validating course: " + course.getCourseCode() + ", instructor_id: " +
                         (course.getInstructor() != null ? course.getInstructor().getId() : "null"));
@@ -77,14 +127,12 @@ public class ScheduleServiceImpl implements ScheduleService {
                 }
             }
 
-            // Track assignments to avoid conflicts
             Map<String, Set<Long>> timeSlotToCourseIds = new HashMap<>();
             Map<String, Set<Long>> timeSlotToInstructorIds = new HashMap<>();
             Map<String, Set<Long>> timeSlotToRoomIds = new HashMap<>();
             List<ScheduleResult> results = new ArrayList<>();
             DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
-            // Shuffle time slots and rooms for better distribution
             Collections.shuffle(timeSlots, new Random());
             Collections.shuffle(rooms, new Random());
 
@@ -102,29 +150,23 @@ public class ScheduleServiceImpl implements ScheduleService {
                             timeSlot.getStartTime().format(timeFormatter) + "-" +
                             timeSlot.getEndTime().format(timeFormatter);
 
-                    // Initialize sets for this time slot if they don't exist
                     timeSlotToCourseIds.computeIfAbsent(timeSlotKey, k -> new HashSet<>());
                     timeSlotToInstructorIds.computeIfAbsent(timeSlotKey, k -> new HashSet<>());
                     timeSlotToRoomIds.computeIfAbsent(timeSlotKey, k -> new HashSet<>());
 
-                    // Skip if instructor is already busy in this time slot
                     if (timeSlotToInstructorIds.get(timeSlotKey).contains(assignedInstructor.getId())) {
                         continue;
                     }
 
-                    // Try to find an available room
                     for (Room room : rooms) {
-                        // Skip if room is already booked in this time slot
                         if (timeSlotToRoomIds.get(timeSlotKey).contains(room.getId())) {
                             continue;
                         }
 
-                        // Check room compatibility with course requirements
                         if (course.getRoomSpec() != null && !room.getRoomType().equals(course.getRoomSpec())) {
                             continue;
                         }
 
-                        // Create schedule result
                         ScheduleResult result = new ScheduleResult();
                         result.setCourseCodes(List.of(course.getCourseCode()));
                         result.setTimeSlots(List.of(
@@ -138,9 +180,8 @@ public class ScheduleServiceImpl implements ScheduleService {
                         result.setRoomNames(List.of(room.getRoomName()));
                         result.setMessage("Generated for semester " + semester + ", year " + year);
                         result.setSemester(semester);
-                        result.setYear(year); // Ensure year is properly set
+                        result.setYear(year);
 
-                        // Mark resources as used
                         timeSlotToCourseIds.get(timeSlotKey).add(course.getId());
                         timeSlotToInstructorIds.get(timeSlotKey).add(assignedInstructor.getId());
                         timeSlotToRoomIds.get(timeSlotKey).add(room.getId());
@@ -211,52 +252,139 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public List<ScheduleResult> getAllScheduleResultsBySemesterAndYear(int semester, int year) {
         System.out.println("Searching for schedules with semester=" + semester + ", year=" + year);
-
-        // Debug - Get all results first to see what's in the DB
         List<ScheduleResult> allResults = scheduleResultRepository.findAll();
         System.out.println("Total results in DB: " + allResults.size());
-
-        // Print details of all results
         for (ScheduleResult result : allResults) {
             System.out.println("DB Result: id=" + result.getId() +
                     ", semester=" + result.getSemester() +
                     ", year=" + result.getYear() +
                     ", courseCodes=" + result.getCourseCodes());
         }
-
-        // Try to get the filtered results, accounting for possibly null years in the database
         List<ScheduleResult> results = scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
         System.out.println("Found " + results.size() + " results for semester=" + semester + ", year=" + year);
-
         return results;
     }
 
     @Override
     public List<ScheduleResult> getSchedulesForInstructor() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return scheduleResultRepository.findAll().stream()
-                .filter(result -> result.getInstructorNames().stream()
-                        .anyMatch(name -> name.contains(username)))
-                .toList();
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication() != null
+                    ? SecurityContextHolder.getContext().getAuthentication().getName()
+                    : null;
+            if (username == null) {
+                System.out.println("No authenticated user found for instructor schedule request");
+                return Collections.emptyList();
+            }
+            System.out.println("Fetching schedules for instructor with username: " + username);
+            Optional<Instructor> instructorOpt = instructorRepository.findByUserUsername(username);
+            if (instructorOpt.isEmpty()) {
+                System.out.println("No instructor found for username: " + username);
+                return Collections.emptyList();
+            }
+            String fullName = instructorOpt.get().getFirstName() + " " + instructorOpt.get().getLastName();
+            System.out.println("Instructor full name: " + fullName);
+
+            List<ScheduleResult> allResults = scheduleResultRepository.findAll();
+            System.out.println("Total schedule results found: " + allResults.size());
+            List<ScheduleResult> filteredResults = allResults.stream()
+                    .filter(result -> {
+                        List<String> instructorNames = result.getInstructorNames();
+                        if (instructorNames == null || instructorNames.isEmpty()) {
+                            System.out.println("ScheduleResult id=" + result.getId() + " has no instructor names");
+                            return false;
+                        }
+                        return instructorNames.stream()
+                                .anyMatch(name -> name != null && name.equalsIgnoreCase(fullName));
+                    })
+                    .toList();
+            System.out.println("Found " + filteredResults.size() + " schedules for instructor: " + fullName);
+            return filteredResults;
+        } catch (Exception e) {
+            System.out.println("Error fetching instructor schedules: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     @Override
     public List<ScheduleResult> getSchedulesForInstructorBySemesterAndYear(int semester, int year) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year).stream()
-                .filter(result -> result.getInstructorNames().stream()
-                        .anyMatch(name -> name.contains(username)))
-                .toList();
+        try {
+            System.out.println("Entering getSchedulesForInstructorBySemesterAndYear with semester=" + semester + ", year=" + year);
+            String username = SecurityContextHolder.getContext().getAuthentication() != null
+                    ? SecurityContextHolder.getContext().getAuthentication().getName()
+                    : null;
+            if (username == null) {
+                System.out.println("No authenticated user found for instructor schedule request (semester=" + semester + ", year=" + year + ")");
+                return Collections.emptyList();
+            }
+            System.out.println("Authenticated username: " + username);
+
+            Optional<Instructor> instructorOpt = instructorRepository.findByUserUsername(username);
+            if (instructorOpt.isEmpty()) {
+                System.out.println("No instructor found for username: " + username);
+                return Collections.emptyList();
+            }
+            String fullName = instructorOpt.get().getFirstName() + " " + instructorOpt.get().getLastName();
+            System.out.println("Instructor full name: " + fullName);
+
+            List<ScheduleResult> results = scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
+            System.out.println("Total schedule results found: " + results.size());
+
+            for (ScheduleResult result : results) {
+                System.out.println("ScheduleResult id=" + result.getId() +
+                        ", semester=" + result.getSemester() +
+                        ", year=" + result.getYear() +
+                        ", courseCodes=" + result.getCourseCodes() +
+                        ", instructorNames=" + result.getInstructorNames());
+            }
+
+            List<ScheduleResult> filteredResults = results.stream()
+                    .filter(result -> {
+                        List<String> instructorNames = result.getInstructorNames();
+                        if (instructorNames == null || instructorNames.isEmpty()) {
+                            System.out.println("ScheduleResult id=" + result.getId() + " has null or empty instructorNames");
+                            return false;
+                        }
+                        boolean matches = instructorNames.stream()
+                                .anyMatch(name -> name != null && name.equalsIgnoreCase(fullName));
+                        System.out.println("ScheduleResult id=" + result.getId() + " matches instructor: " + matches);
+                        return matches;
+                    })
+                    .toList();
+
+            System.out.println("Found " + filteredResults.size() + " schedules for instructor: " + fullName + " for semester=" + semester + ", year=" + year);
+            return filteredResults;
+        } catch (Exception e) {
+            System.out.println("Error in getSchedulesForInstructorBySemesterAndYear for semester=" + semester + ", year=" + year + ": " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     @Override
     public List<ScheduleResult> getSchedulesForLoggedInUser() {
-        return scheduleResultRepository.findAll();
+        try {
+            List<ScheduleResult> results = scheduleResultRepository.findAll();
+            System.out.println("Fetched " + results.size() + " schedules for logged-in user");
+            return results;
+        } catch (Exception e) {
+            System.out.println("Error fetching schedules for logged-in user: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     @Override
     public List<ScheduleResult> getSchedulesForLoggedInUserBySemesterAndYear(int semester, int year) {
-        return scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
+        try {
+            List<ScheduleResult> results = scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
+            System.out.println("Fetched " + results.size() + " schedules for logged-in user for semester=" + semester + ", year=" + year);
+            return results;
+        } catch (Exception e) {
+            System.out.println("Error fetching schedules for logged-in user for semester=" + semester + ", year=" + year + ": " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     private void updateScheduleStatus(int semester, int year, String status) {

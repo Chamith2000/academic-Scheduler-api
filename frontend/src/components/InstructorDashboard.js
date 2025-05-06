@@ -6,7 +6,6 @@ import {
     HiOutlineMenuAlt1,
     HiLogout,
     HiHome,
-    HiCalendar,
     HiAcademicCap,
     HiCog,
     HiDocumentText,
@@ -34,7 +33,6 @@ const Dashboard = () => {
 
     const NavItems = [
         { icon: HiHome, label: "Dashboard", path: "/instructor-dashboard", bgGradient: "from-indigo-600 to-blue-600", tooltip: "View your dashboard" },
-        { icon: HiCalendar, label: "Timetable", path: "/instructor-timetable", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Check your schedule" },
         { icon: HiAcademicCap, label: "Courses", path: "/instructor-courses", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Manage your courses" },
         { icon: HiDocumentText, label: "Reports", path: "/instructor-reports", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Download reports" },
         { icon: HiAdjustments, label: "Preferences", path: "/instructor-preferences", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Set availability" },
@@ -319,13 +317,6 @@ const Dashboard = () => {
                                         tooltip="Access your course list"
                                     />
                                     <DashboardCard
-                                        title="Timetable"
-                                        description="View your teaching schedule"
-                                        icon={<HiCalendar className="w-6 h-6" />}
-                                        link="/instructor-timetable"
-                                        tooltip="Check your weekly schedule"
-                                    />
-                                    <DashboardCard
                                         title="Settings"
                                         description="Manage your account settings"
                                         icon={<HiCog className="w-6 h-6" />}
@@ -335,7 +326,6 @@ const Dashboard = () => {
                                 </div>
                             </section>
                         )}
-
 
                         {/* Stats Section */}
                         <section>

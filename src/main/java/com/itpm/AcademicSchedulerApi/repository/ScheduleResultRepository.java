@@ -12,9 +12,11 @@ public interface ScheduleResultRepository extends JpaRepository<ScheduleResult, 
 
     List<ScheduleResult> findBySemesterAndYear(int semester, int year);
 
-    @Query("SELECT s FROM ScheduleResult s WHERE s.semester = :semester AND (s.year = :year OR s.year IS NULL)")
-    List<ScheduleResult> findBySemesterAndYearWithNullCheck(@Param("semester") int semester, @Param("year") int year);
+//    @Query("SELECT s FROM ScheduleResult s WHERE s.semester = :semester AND (s.year = :year OR s.year IS NULL)")
+//    List<ScheduleResult> findBySemesterAndYearWithNullCheck(@Param("semester") int semester, @Param("year") int year);
 
     @Query("SELECT s FROM ScheduleResult s WHERE s.semester = :semester AND s.year = :year")
     List<ScheduleResult> findSchedulesBySemesterAndYear(@Param("semester") int semester, @Param("year") int year);
+    @Query("SELECT sr FROM ScheduleResult sr WHERE sr.semester = :semester AND (sr.year = :year OR sr.year IS NULL)")
+    List<ScheduleResult> findBySemesterAndYearWithNullCheck(@Param("semester") int semester, @Param("year") int year);
 }
