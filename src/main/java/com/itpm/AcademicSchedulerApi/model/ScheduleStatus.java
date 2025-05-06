@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 @Entity
-@Table(name = "schedule_status")
+@Table(
+        name = "schedule_status",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"semester", "year"})
+)
 @Data
 public class ScheduleStatus {
 
@@ -12,12 +15,10 @@ public class ScheduleStatus {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
     private int semester;
+
+    private int year;
 
     @Column(length = 255)
     private String status;
-
-
 }
-

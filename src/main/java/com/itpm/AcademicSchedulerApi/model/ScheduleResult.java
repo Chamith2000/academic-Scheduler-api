@@ -38,6 +38,8 @@ public class ScheduleResult {
     @Column(name = "semester")
     private Integer semester;
 
+    private Integer year;
+
     // Converter for List<String> to JSON string
     @Converter
     public static class StringListConverter implements AttributeConverter<List<String>, String> {
