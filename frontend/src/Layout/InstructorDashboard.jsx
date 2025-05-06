@@ -28,7 +28,7 @@ export default function InstructorDashboard({ children }) {
         {
             icon: HiHome,
             label: "Dashboard",
-            path: "/dashboard",
+            path: "/instructor-dashboard",
             bgGradient: "from-blue-500 to-blue-700"
         },
         {

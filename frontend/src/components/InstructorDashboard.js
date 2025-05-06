@@ -33,7 +33,7 @@ const Dashboard = () => {
     });
 
     const NavItems = [
-        { icon: HiHome, label: "Dashboard", path: "/dashboard", bgGradient: "from-indigo-600 to-blue-600", tooltip: "View your dashboard" },
+        { icon: HiHome, label: "Dashboard", path: "/instructor-dashboard", bgGradient: "from-indigo-600 to-blue-600", tooltip: "View your dashboard" },
         { icon: HiCalendar, label: "Timetable", path: "/instructor-timetable", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Check your schedule" },
         { icon: HiAcademicCap, label: "Courses", path: "/instructor-courses", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Manage your courses" },
         { icon: HiDocumentText, label: "Reports", path: "/instructor-reports", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Download reports" },
@@ -336,37 +336,6 @@ const Dashboard = () => {
                             </section>
                         )}
 
-                        {userData?.role === "STUDENT" && (
-                            <section className="mb-8">
-                                <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-                                    Quick Actions
-                                    {/* Sinhala: ඉක්මන් ක්‍රියා */}
-                                </h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <DashboardCard
-                                        title="My Courses"
-                                        description="View your enrolled courses"
-                                        icon={<HiAcademicCap className="w-6 h-6" />}
-                                        link="/student-courses"
-                                        tooltip="See enrolled courses"
-                                    />
-                                    <DashboardCard
-                                        title="Timetable"
-                                        description="View your class schedule"
-                                        icon={<HiCalendar className="w-6 h-6" />}
-                                        link="/student-timetable"
-                                        tooltip="Check your class schedule"
-                                    />
-                                    <DashboardCard
-                                        title="Settings"
-                                        description="Manage your account settings"
-                                        icon={<HiCog className="w-6 h-6" />}
-                                        link="/settings"
-                                        tooltip="Update your profile"
-                                    />
-                                </div>
-                            </section>
-                        )}
 
                         {/* Stats Section */}
                         <section>

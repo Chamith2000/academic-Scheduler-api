@@ -53,9 +53,9 @@ export default function Login() {
             setPwd("");
 
             if (role === "INSTRUCTOR") {
-                navigate("/dashboard");
+                navigate("/instructor-dashboard");
             } else if (role === "STUDENT") {
-                navigate("/dashboard"); // New condition for student
+                navigate("/student-dashboard"); // New condition for student
             } else {
                 navigate(from, { replace: true });
             }
