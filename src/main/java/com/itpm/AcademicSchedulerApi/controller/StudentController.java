@@ -3,6 +3,7 @@ package com.itpm.AcademicSchedulerApi.controller;
 import com.itpm.AcademicSchedulerApi.controller.dto.StudentDTO;
 import com.itpm.AcademicSchedulerApi.controller.request.ChangePasswordRequest;
 import com.itpm.AcademicSchedulerApi.controller.request.ProgramEnrollmentDTO;
+import com.itpm.AcademicSchedulerApi.controller.request.StudentProfileRequest;
 import com.itpm.AcademicSchedulerApi.controller.request.StudentProfileUpdateRequest;
 import com.itpm.AcademicSchedulerApi.model.ProgramEnrollment;
 import com.itpm.AcademicSchedulerApi.model.Student;
@@ -49,21 +50,6 @@ public class StudentController {
         return new ResponseEntity<>(studentDTO, HttpStatus.OK);
     }
 
-    @PostMapping("/create")
-    @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<Student> createStudentProfile() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User user = (User) authentication.getPrincipal();
-        Optional<Student> existingStudent = studentRepository.findByUserId(user.getId());
-        if (existingStudent.isPresent()) {
-            throw new RuntimeException("Student profile already exists");
-        }
-        Student student = new Student();
-        student.setUser(user);
-        student.setYear(1);
-        Student savedStudent = studentRepository.save(student);
-        return new ResponseEntity<>(savedStudent, HttpStatus.CREATED);
-    }
 
     @PostMapping("/enroll")
     @PreAuthorize("hasAuthority('STUDENT')")
@@ -76,6 +62,23 @@ public class StudentController {
         return new ResponseEntity<>(enrollment, HttpStatus.CREATED);
     }
 
+    @PostMapping("/create")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<StudentDTO> createStudentProfile(@RequestBody StudentProfileRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = (User) authentication.getPrincipal();
+        if (studentRepository.findByUserId(user.getId()).isPresent()) {
+            throw new RuntimeException("Student profile already exists for this user.");
+        }
+        Student student = new Student();
+        student.setUser(user);
+        student.setYear(request.getYear());
+        student.setSemester(request.getSemester());
+        studentRepository.save(student);
+        StudentDTO studentDTO = studentService.getStudentDTOByUserId(user.getId());
+        return new ResponseEntity<>(studentDTO, HttpStatus.CREATED);
+    }
+
     @PutMapping("/me")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<StudentDTO> updateStudentProfile(@RequestBody StudentProfileUpdateRequest request) {
@@ -84,12 +87,14 @@ public class StudentController {
         Student student = studentRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Student profile not found."));
         student.setYear(request.getYear());
+        student.setSemester(request.getSemester());
         user.setEmail(request.getEmail());
         studentRepository.save(student);
         // Assume userRepository.save(user) is needed if email is updated
         StudentDTO studentDTO = studentService.getStudentDTOByUserId(user.getId());
         return new ResponseEntity<>(studentDTO, HttpStatus.OK);
     }
+
     @PostMapping("/change-password")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest request) {
@@ -117,4 +122,4 @@ public class StudentController {
         }
     }
 
-}
+    }
