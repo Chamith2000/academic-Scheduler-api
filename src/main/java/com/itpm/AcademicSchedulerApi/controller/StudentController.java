@@ -10,6 +10,7 @@ import com.itpm.AcademicSchedulerApi.model.User;
 import com.itpm.AcademicSchedulerApi.repository.StudentRepository;
 import com.itpm.AcademicSchedulerApi.repository.UserRepository;
 import com.itpm.AcademicSchedulerApi.service.StudentService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -98,4 +99,22 @@ public class StudentController {
         userRepository.save(user);
         return new ResponseEntity<>(HttpStatus.OK);
     }
+
+    @DeleteMapping("/me")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    @Transactional
+    public ResponseEntity<Void> deleteAccount() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = (User) authentication.getPrincipal();
+        try {
+            // Delete Student record first due to foreign key constraint
+            studentRepository.deleteByUserId(user.getId());
+            // Delete User record
+            userRepository.deleteById(user.getId());
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete account: " + e.getMessage());
+        }
+    }
+
 }

@@ -6,7 +6,7 @@ import useAuth from "../../hooks/useAuth";
 import Layout from "./Layout";
 
 const StudentSettings = () => {
-    const { auth } = useAuth();
+    const { auth, setAuth } = useAuth();
     const navigate = useNavigate();
     const [student, setStudent] = useState(null);
     const [year, setYear] = useState(1);
@@ -17,6 +17,7 @@ const StudentSettings = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
         if (!auth?.accessToken) {
@@ -130,6 +131,26 @@ const StudentSettings = () => {
             setError(err.response?.data?.message || "Failed to change password. Please try again.");
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        setSubmitting(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            await axios.delete("http://localhost:8080/api/students/me", {
+                headers: { Authorization: `Bearer ${auth.accessToken}` },
+            });
+            setSuccess("Account deleted successfully. Redirecting to login...");
+            setAuth(null);
+            navigate("/login");
+        } catch (err) {
+            console.error("Delete account error:", err);
+            setError(err.response?.data?.message || "Failed to delete account. Please try again.");
+        } finally {
+            setSubmitting(false);
+            setShowDeleteModal(false);
         }
     };
 
@@ -289,7 +310,7 @@ const StudentSettings = () => {
                         </form>
                     )}
                 </section>
-                <section>
+                <section className="mb-8">
                     <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
                         Change Password {/* Sinhala: මුරපදය වෙනස් කරන්න */}
                     </h2>
@@ -337,6 +358,72 @@ const StudentSettings = () => {
                         </motion.button>
                     </form>
                 </section>
+                <section>
+                    <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
+                        Delete Account {/* Sinhala: ගිණුම ඉවත් කරන්න */}
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Permanently delete your account and all associated data. This action cannot be undone.
+                        {/* Sinhala: ඔබගේ ගිණුම සහ සියලුම සම්බන්ධිත දත්ත ස්ථිරවම ඉවත් කරන්න. මෙම ක්‍රියාව ආපසු හැරවිය නොහැක. */}
+                    </p>
+                    <motion.button
+                        onClick={() => setShowDeleteModal(true)}
+                        className={`w-full sm:w-auto px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        disabled={submitting}
+                    >
+                        Delete My Account {/* Sinhala: මගේ ගිණුම ඉවත් කරන්න */}
+                    </motion.button>
+                </section>
+                <AnimatePresence>
+                    {showDeleteModal && (
+                        <motion.div
+                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <motion.div
+                                className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full"
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                            >
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+                                    Confirm Account Deletion {/* Sinhala: ගිණුම ඉවත් කිරීම තහවුරු කරන්න */}
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
+                                    Are you sure you want to delete your account? This action is permanent and cannot be undone.
+                                    {/* Sinhala: ඔබට විශ්වාසද ඔබගේ ගිණුම ඉවත් කිරීමට? මෙම ක්‍රියාව ස්ථිර වන අතර ආපසු හැරවිය නොහැක. */}
+                                </p>
+                                <div className="flex justify-end space-x-4">
+                                    <motion.button
+                                        onClick={() => setShowDeleteModal(false)}
+                                        className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        Cancel {/* Sinhala: අවලංගු කරන්න */}
+                                    </motion.button>
+                                    <motion.button
+                                        onClick={handleDeleteAccount}
+                                        className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        disabled={submitting}
+                                    >
+                                        {submitting ? (
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                        ) : (
+                                            "Delete" // Sinhala: ඉවත් කරන්න
+                                        )}
+                                    </motion.button>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </motion.div>
         </Layout>
     );
