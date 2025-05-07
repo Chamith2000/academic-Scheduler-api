@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import useAuth from "../../hooks/useAuth";
-import { HiUserGroup, HiRefresh } from "react-icons/hi";
-import { motion } from "framer-motion";
+import { HiUserGroup, HiRefresh, HiAcademicCap, HiCalendar } from "react-icons/hi";
 import Layout from "./Layout";
 
 const StudentDashboard = () => {
@@ -126,14 +125,17 @@ const StudentDashboard = () => {
         return userAgent.split(" ").slice(-1)[0].split("/")[0];
     };
 
+    const getInitials = (username) => {
+        if (!username) return "U";
+        return username.charAt(0).toUpperCase();
+    };
+
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div className="text-center">
-                    <div className="w-12 h-12 border-4 border-gray-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p className="mt-4 text-gray-600 dark:text-gray-300">
-                        Loading your dashboard... {/* Sinhala: ඔබගේ උපකරණ පුවරුව පූරණය වෙමින්... */}
-                    </p>
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                    <p className="mt-4 text-gray-600 dark:text-gray-300">Loading your dashboard...</p>
                 </div>
             </div>
         );
@@ -141,32 +143,35 @@ const StudentDashboard = () => {
 
     return (
         <Layout>
-            <motion.div
-                className="bg-white dark:bg-gray-800 rounded-md shadow-sm p-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-            >
-                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
-                    Dashboard
-                    {/* Sinhala: උපකරණ පුවරුව */}
-                </h1>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+                {/* Header Section */}
+                <header className="mb-8">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center text-xl font-semibold">
+                            {getInitials(userData?.user)}
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+                                Welcome, {userData?.user || "Student"}!
+                            </h1>
+                            <p className="text-gray-600 dark:text-gray-300 mt-1">
+                                Here's an overview of your academic dashboard.
+                            </p>
+                        </div>
+                    </div>
+                </header>
 
-                {/* User Info */}
                 <section className="mb-8">
-                    <h2 className="text-xl font-medium text-gray-700 dark:text-gray-200 mb-4">
-                        Account Information
-                        {/* Sinhala: ගිණුම් තොරතුරු */}
-                    </h2>
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">Account Information</h2>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-xl shadow-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Username</p>
                                 <p className="font-medium text-gray-800 dark:text-white">{userData?.user}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Role</p>
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                                     STUDENT
                                 </span>
                             </div>
@@ -174,21 +179,53 @@ const StudentDashboard = () => {
                     </div>
                 </section>
 
-                {/* System Stats */}
+                {/* Navigation Cards Section */}
+                <section className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">Quick Actions</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div
+                            onClick={() => navigate("/student-courses")}
+                            className="cursor-pointer bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+                        >
+                            <div className="flex items-center space-x-4">
+                                <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-full">
+                                    <HiAcademicCap className="w-8 h-8 text-blue-600 dark:text-blue-300" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold">View Courses</h3>
+                                    <p className="text-sm text-gray-200">
+                                        Explore your enrolled courses and program details.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            onClick={() => navigate("/student-timetable")}
+                            className="cursor-pointer bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+                        >
+                            <div className="flex items-center space-x-4">
+                                <div className="p-3 bg-blue-100 dark:bg-blue-800 rounded-full">
+                                    <HiCalendar className="w-8 h-8 text-blue-600 dark:text-blue-300" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold">View Timetable</h3>
+                                    <p className="text-sm text-gray-200">
+                                        Check your class schedule and upcoming sessions.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section>
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-medium text-gray-700 dark:text-gray-200">
-                            System Overview
-                            {/* Sinhala: පද්ධති දළ විශ්ලේෂණය */}
-                        </h2>
-                        <motion.button
+                        <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200">System Overview</h2>
+                        <button
                             onClick={refreshSystemStats}
-                            className={`flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 ${
+                            className={`flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 ${
                                 isRefreshing ? "opacity-50 cursor-not-allowed" : ""
                             }`}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            disabled={isRefreshing}
                         >
                             {isRefreshing ? (
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
@@ -196,14 +233,13 @@ const StudentDashboard = () => {
                                 <HiRefresh className="h-4 w-4 mr-2" />
                             )}
                             Refresh
-                            {/* Sinhala: නැවුම් කරන්න */}
-                        </motion.button>
+                        </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard
                             title="Active Sessions"
                             value={systemStats.activeSessions}
-                            icon={<HiUserGroup className="h-5 w-5 text-gray-600" />}
+                            icon={<HiUserGroup className="h-5 w-5 text-blue-600" />}
                         />
                         <StatCard
                             title="System Status"
@@ -265,20 +301,20 @@ const StudentDashboard = () => {
                         />
                     </div>
                 </section>
-            </motion.div>
+            </div>
         </Layout>
     );
 };
 
 const StatCard = ({ title, value, icon }) => {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-md shadow-sm p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
                     <p className="text-lg font-medium text-gray-800 dark:text-white">{value}</p>
                 </div>
-                <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-md">{icon}</div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">{icon}</div>
             </div>
         </div>
     );
