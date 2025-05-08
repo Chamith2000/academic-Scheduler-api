@@ -17,7 +17,7 @@ import Register from "./pages/register/Register";
 import LandingPage from "./pages/landing-page/LandingPage";
 import Unauthorized from "./pages/unauthorized/Unauthorized";
 import StudentTimetable from "./pages/students/StudentTimetable";
-import InstructorDashboardPage from "./components/InstructorDashboard"
+import InstructorDashboardPage from "./components/InstructorDashboard";
 import InstructorPreferencesPage from "./components/InstructorPreferences";
 import InstructorCourses from "./pages/instructors/InstructorCourses";
 import InstructorProfile from "./pages/instructors/InstructorProfile";
@@ -26,7 +26,7 @@ import InstructorReportsPage from "./pages/instructors/InstructorSettings";
 import StudentDashboard from "./pages/students/StudentDashboard";
 import StudentCourses from "./pages/students/StudentCourses";
 import StudentSettings from "./pages/students/StudentSettings";
-
+import InstructorCancelClass from "./pages/instructors/InstructorCancelClass";
 
 const ROLES = {
   student: "STUDENT",
@@ -60,14 +60,14 @@ function App() {
           >
             <Route path="instructor" element={<Instructor />} />
             <Route path="instructor-timetable" element={<InstructorTimetable />} />
-
             <Route path="instructor-preferences" element={<InstructorPreferencesPage />} />
             <Route path="instructor-courses" element={<InstructorCourses />} />
             <Route path="instructor-profile" element={<InstructorProfile />} />
+            <Route path="instructor-cancel-class" element={<InstructorCancelClass />} />
           </Route>
 
           <Route
-              element={<RequireAuth allowedRoles={[ROLES.instructor,ROLES.student]} />}
+              element={<RequireAuth allowedRoles={[ROLES.instructor, ROLES.student]} />}
           >
             <Route path="student-timetable" element={<StudentTimetable />} />
             <Route path="student-dashboard" element={<StudentDashboard />} />
@@ -88,13 +88,12 @@ function App() {
             <Route path="faculty" element={<Faculty />} />
             <Route path="department" element={<Department />} />
             <Route path="section" element={<Section />} />
-
           </Route>
+
           <Route element={<RequireAuth allowedRoles={[ROLES.student]} />}>
             <Route path="student-courses" element={<StudentCourses />} />
             <Route path="student-settings" element={<StudentSettings />} />
           </Route>
-          end of protected routes
         </Route>
       </Routes>
   );

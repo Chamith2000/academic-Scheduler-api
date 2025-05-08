@@ -20,6 +20,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findBySemesterAndYearAndProgram(int semester, int year, Program program);
 
     Optional<Course> findByCourseName(String courseName);
+    Optional<Course> findByCourseCode(String courseCode);
     List<Course> findByInstructor(Instructor instructor);
 
     @Query("SELECT c FROM Course c WHERE c.instructor.id = :instructorId AND c.semester = :semester AND c.year = :year")
