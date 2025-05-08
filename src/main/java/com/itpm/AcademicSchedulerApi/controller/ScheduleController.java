@@ -102,4 +102,19 @@ public class ScheduleController {
         System.out.println("Debug endpoint: Found " + results.size() + " total results");
         return ResponseEntity.ok(results);
     }
+
+    @PostMapping("/reschedule/{scheduleId}")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    public ResponseEntity<?> rescheduleClass(@PathVariable Integer scheduleId) {
+        try {
+            ScheduleResult rescheduled = scheduleService.rescheduleClass(scheduleId);
+            return ResponseEntity.ok(rescheduled);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Error in rescheduleClass: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
+        }
+    }
 }

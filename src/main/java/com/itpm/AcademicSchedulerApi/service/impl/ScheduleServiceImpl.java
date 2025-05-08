@@ -28,7 +28,6 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public List<ScheduleResult> getAllSchedulesForInstructor() {
         try {
-            // Get the authenticated user's username
             String username = SecurityContextHolder.getContext().getAuthentication() != null
                     ? SecurityContextHolder.getContext().getAuthentication().getName()
                     : null;
@@ -38,7 +37,6 @@ public class ScheduleServiceImpl implements ScheduleService {
             }
             System.out.println("Fetching all schedules for instructor with username: " + username);
 
-            // Fetch the instructor by username
             Optional<Instructor> instructorOpt = instructorRepository.findByUserUsername(username);
             if (instructorOpt.isEmpty()) {
                 System.out.println("No instructor found for username: " + username);
@@ -48,11 +46,9 @@ public class ScheduleServiceImpl implements ScheduleService {
             String fullName = instructor.getFirstName() + " " + instructor.getLastName();
             System.out.println("Instructor full name: " + fullName);
 
-            // Fetch all schedule results
             List<ScheduleResult> results = scheduleResultRepository.findAll();
             System.out.println("Total schedule results found: " + results.size());
 
-            // Filter schedules where the instructor's full name is in instructor_names
             List<ScheduleResult> filteredResults = results.stream()
                     .filter(result -> {
                         List<String> instructorNames = result.getInstructorNames();
@@ -384,6 +380,123 @@ public class ScheduleServiceImpl implements ScheduleService {
             System.out.println("Error fetching schedules for logged-in user for semester=" + semester + ", year=" + year + ": " + e.getMessage());
             e.printStackTrace();
             return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public ScheduleResult rescheduleClass(Integer scheduleId) {
+        try {
+            // Fetch the existing schedule
+            Optional<ScheduleResult> scheduleOpt = scheduleResultRepository.findById(scheduleId);
+            if (scheduleOpt.isEmpty()) {
+                throw new IllegalArgumentException("Schedule not found with ID: " + scheduleId);
+            }
+            ScheduleResult existingSchedule = scheduleOpt.get();
+
+            // Verify instructor authentication
+            String username = SecurityContextHolder.getContext().getAuthentication() != null
+                    ? SecurityContextHolder.getContext().getAuthentication().getName()
+                    : null;
+            if (username == null) {
+                throw new IllegalArgumentException("No authenticated user found");
+            }
+            Optional<Instructor> instructorOpt = instructorRepository.findByUserUsername(username);
+            if (instructorOpt.isEmpty()) {
+                throw new IllegalArgumentException("No instructor found for username: " + username);
+            }
+            Instructor instructor = instructorOpt.get();
+            String fullName = instructor.getFirstName() + " " + instructor.getLastName();
+            if (!existingSchedule.getInstructorNames().contains(fullName)) {
+                throw new IllegalArgumentException("Instructor not authorized to modify this schedule");
+            }
+
+            // Fetch course details
+            String courseCode = existingSchedule.getCourseCodes().get(0);
+            Optional<Course> courseOpt = courseRepository.findByCourseCode(courseCode);
+            if (courseOpt.isEmpty()) {
+                throw new IllegalArgumentException("Course not found with code: " + courseCode);
+            }
+            Course course = courseOpt.get();
+
+            // Get instructor's preferred timeslots
+            Set<TimeSlot> preferredTimeSlots = instructor.getPreferences();
+            if (preferredTimeSlots.isEmpty()) {
+                throw new IllegalArgumentException("Instructor has no preferred timeslots");
+            }
+
+            // Fetch all schedules for the semester and year
+            List<ScheduleResult> existingSchedules = scheduleResultRepository.findBySemesterAndYear(
+                    existingSchedule.getSemester(), existingSchedule.getYear());
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+            // Check if any preferred timeslots are free
+            List<TimeSlot> availableTimeSlots = preferredTimeSlots.stream()
+                    .filter(timeSlot -> {
+                        String timeSlotKey = timeSlot.getDay() + ":" +
+                                timeSlot.getStartTime().format(timeFormatter) + "-" +
+                                timeSlot.getEndTime().format(timeFormatter);
+                        return existingSchedules.stream()
+                                .noneMatch(s -> s.getTimeSlots().contains(timeSlotKey) &&
+                                        (s.getInstructorNames().contains(fullName) ||
+                                                s.getRoomNames().contains(existingSchedule.getRoomNames().get(0))));
+                    })
+                    .collect(Collectors.toList());
+
+            if (availableTimeSlots.isEmpty()) {
+                throw new IllegalArgumentException("No available timeslots for rescheduling. All preferred timeslots are occupied.");
+            }
+
+            // Randomly select an available timeslot
+            Random random = new Random();
+            TimeSlot newTimeSlot = availableTimeSlots.get(random.nextInt(availableTimeSlots.size()));
+            String timeSlotKey = newTimeSlot.getDay() + ":" +
+                    newTimeSlot.getStartTime().format(timeFormatter) + "-" +
+                    newTimeSlot.getEndTime().format(timeFormatter);
+
+            // Find a suitable room
+            List<Room> rooms = roomRepository.findAll();
+            Room suitableRoom = null;
+            for (Room room : rooms) {
+                if (course.getRoomSpec() != null && !room.getRoomType().equals(course.getRoomSpec())) {
+                    continue;
+                }
+                boolean roomConflict = existingSchedules.stream().anyMatch(s ->
+                        s.getTimeSlots().contains(timeSlotKey) && s.getRoomNames().contains(room.getRoomName()));
+                if (!roomConflict) {
+                    suitableRoom = room;
+                    break;
+                }
+            }
+            if (suitableRoom == null) {
+                throw new IllegalArgumentException("No available room found for the new timeslot");
+            }
+
+            // Create a new schedule
+            ScheduleResult newSchedule = new ScheduleResult();
+            newSchedule.setCourseCodes(existingSchedule.getCourseCodes());
+            newSchedule.setTimeSlots(List.of(
+                    newTimeSlot.getDay() + ": " +
+                            newTimeSlot.getStartTime().format(timeFormatter) + " - " +
+                            newTimeSlot.getEndTime().format(timeFormatter)
+            ));
+            newSchedule.setInstructorNames(existingSchedule.getInstructorNames());
+            newSchedule.setRoomNames(List.of(suitableRoom.getRoomName()));
+            newSchedule.setMessage("Rescheduled for semester " + existingSchedule.getSemester() + ", year " + existingSchedule.getYear());
+            newSchedule.setSemester(existingSchedule.getSemester());
+            newSchedule.setYear(existingSchedule.getYear());
+
+            // Save the new schedule
+            ScheduleResult savedSchedule = scheduleResultRepository.save(newSchedule);
+            System.out.println("Rescheduled course " + courseCode + " to " + timeSlotKey + " in " + suitableRoom.getRoomName() + " (new record added)");
+
+            // Delete the original schedule
+            scheduleResultRepository.delete(existingSchedule);
+            System.out.println("Deleted original schedule with ID: " + existingSchedule.getId());
+
+            return savedSchedule;
+        } catch (Exception e) {
+            System.out.println("Error rescheduling class: " + e.getMessage());
+            throw e;
         }
     }
 

@@ -10,7 +10,7 @@ import {
     HiAcademicCap,
     HiCog,
     HiDocumentText,
-    HiAdjustments,
+    HiAdjustments, HiX,
 } from "react-icons/hi";
 import { Download } from "lucide-react";
 import { ToastContainer, toast } from "react-toastify";
@@ -31,6 +31,7 @@ const InstructorReportsPage = () => {
         { icon: HiHome, label: "Dashboard", path: "/instructor-dashboard", bgGradient: "from-indigo-600 to-blue-600", tooltip: "View your dashboard" },
         { icon: HiCalendar, label: "Timetable", path: "/instructor-timetable", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Check your schedule" },
         { icon: HiAcademicCap, label: "Courses", path: "/instructor-courses", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Manage your courses" },
+        {icon: HiX, label: "Cancel Class", path: "/instructor-cancel-class", bgGradient: "from-red-500 to-red-700", tooltip: "Cancel a scheduled class"},
         { icon: HiDocumentText, label: "Reports", path: "/instructor-reports", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Download reports" },
         { icon: HiAdjustments, label: "Preferences", path: "/instructor-preferences", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Set availability" },
         { icon: HiCog, label: "Settings", path: "/instructor-settings", bgGradient: "from-indigo-600 to-blue-600", tooltip: "Account settings" },

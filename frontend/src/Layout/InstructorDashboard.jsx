@@ -8,7 +8,7 @@ import {
     HiAcademicCap,
     HiCog,
     HiDocumentText,
-    HiAdjustments // Using this icon for Preferences
+    HiAdjustments, HiX // Using this icon for Preferences
 } from "react-icons/hi";
 import useAuth from "../hooks/useAuth";
 
@@ -44,6 +44,13 @@ export default function InstructorDashboard({ children }) {
             bgGradient: "from-blue-500 to-blue-700"
         },
         {
+            icon: HiX,
+            label: "Cancel Class",
+            path: "/instructor-cancel-class",
+            bgGradient: "from-red-500 to-red-700",
+            tooltip: "Cancel a scheduled class"
+        },
+        {
             icon: HiDocumentText,
             label: "Reports",
             path: "/instructor-reports",
@@ -58,7 +65,7 @@ export default function InstructorDashboard({ children }) {
         {
             icon: HiCog,
             label: "Settings",
-            path: "settings",
+            path: "/settings",
             bgGradient: "from-blue-500 to-blue-700"
         }
     ];
