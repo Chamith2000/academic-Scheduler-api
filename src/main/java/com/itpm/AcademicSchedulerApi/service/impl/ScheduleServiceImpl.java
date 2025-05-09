@@ -24,6 +24,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final InstructorRepository instructorRepository;
     private final SectionRepository sectionRepository;
     private final ProgramRepository programmeRepository;
+    private final StudentRepository studentRepository;
 
     @Override
     public List<ScheduleResult> getAllSchedulesForInstructor() {
@@ -373,9 +374,46 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Override
     public List<ScheduleResult> getSchedulesForLoggedInUserBySemesterAndYear(int semester, int year) {
         try {
+            if (semester < 1 || semester > 2) {
+                System.out.println("Invalid semester value: " + semester);
+                return Collections.emptyList();
+            }
+
+            String username = SecurityContextHolder.getContext().getAuthentication() != null
+                    ? SecurityContextHolder.getContext().getAuthentication().getName()
+                    : null;
+            if (username == null) {
+                System.out.println("No authenticated user found for student schedule request");
+                return Collections.emptyList();
+            }
+
+            Optional<Student> studentOpt = studentRepository.findByUserUsername(username);
+            if (studentOpt.isEmpty()) {
+                System.out.println("No student found for username: " + username);
+                return Collections.emptyList();
+            }
+            Student student = studentOpt.get();
+            Program enrolledProgram = student.getProgram();
+            if (enrolledProgram == null) {
+                System.out.println("Student has no enrolled program");
+                return Collections.emptyList();
+            }
+
+            List<Course> programCourses = enrolledProgram.getCourses();
+            List<String> courseCodes = programCourses.stream()
+                    .map(Course::getCourseCode)
+                    .collect(Collectors.toList());
+
             List<ScheduleResult> results = scheduleResultRepository.findBySemesterAndYearWithNullCheck(semester, year);
-            System.out.println("Fetched " + results.size() + " schedules for logged-in user for semester=" + semester + ", year=" + year);
-            return results;
+            System.out.println("Total schedule results found: " + results.size());
+
+            List<ScheduleResult> filteredResults = results.stream()
+                    .filter(result -> result.getCourseCodes().stream()
+                            .anyMatch(courseCodes::contains))
+                    .collect(Collectors.toList());
+
+            System.out.println("Found " + filteredResults.size() + " schedules for student with username: " + username);
+            return filteredResults;
         } catch (Exception e) {
             System.out.println("Error fetching schedules for logged-in user for semester=" + semester + ", year=" + year + ": " + e.getMessage());
             e.printStackTrace();

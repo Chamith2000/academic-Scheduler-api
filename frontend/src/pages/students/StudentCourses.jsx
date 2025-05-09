@@ -215,8 +215,6 @@ const StudentCourses = () => {
                                     <tr className="bg-gray-100 dark:bg-gray-700">
                                         <th className="p-3 text-gray-700 dark:text-gray-200 font-medium">Code</th>
                                         <th className="p-3 text-gray-700 dark:text-gray-200 font-medium">Name</th>
-                                        <th className="p-3 text-gray-700 dark:text-gray-200 font-medium">Year</th>
-                                        <th className="p-3 text-gray-700 dark:text-gray-200 font-medium">Semester</th>
                                     </tr>
                                     </thead>
                                     <tbody>
@@ -232,8 +230,6 @@ const StudentCourses = () => {
                                         >
                                             <td className="p-3 text-gray-800 dark:text-gray-200">{course.courseCode}</td>
                                             <td className="p-3 text-gray-800 dark:text-gray-200">{course.courseName}</td>
-                                            <td className="p-3 text-gray-800 dark:text-gray-200">{course.year}</td>
-                                            <td className="p-3 text-gray-800 dark:text-gray-200">{course.semester}</td>
                                         </motion.tr>
                                     ))}
                                     </tbody>
@@ -243,7 +239,9 @@ const StudentCourses = () => {
                             <p className="text-gray-600 dark:text-gray-300">No courses available for this program.</p>
                         )
                     ) : (
-                        <p className="text-gray-600 dark:text-gray-300">Please enroll in a program to view courses.</p>
+                        <p className="text-gray-600 dark:text-gray-300">Please enrollğmen
+
+                            System: in a program to view courses.</p>
                     )}
                 </section>
             </motion.div>

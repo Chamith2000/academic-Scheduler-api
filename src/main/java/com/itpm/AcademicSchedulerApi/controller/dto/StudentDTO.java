@@ -6,6 +6,7 @@ import lombok.Data;
 public class StudentDTO {
     private Long id;
     private int year;
+    private int semester;
     private String username;
     private String email;
     private Long programId;

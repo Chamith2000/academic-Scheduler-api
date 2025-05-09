@@ -2,6 +2,7 @@ package com.itpm.AcademicSchedulerApi.controller.request;
 
 public class StudentProfileUpdateRequest {
     private int year;
+    private int semester;
     private String email;
 
     public int getYear() {
@@ -14,6 +15,14 @@ public class StudentProfileUpdateRequest {
 
     public String getEmail() {
         return email;
+    }
+
+    public int getSemester() {
+        return semester;
+    }
+
+    public void setSemester(int semester) {
+        this.semester = semester;
     }
 
     public void setEmail(String email) {

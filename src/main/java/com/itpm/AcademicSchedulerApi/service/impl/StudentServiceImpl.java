@@ -26,16 +26,15 @@ public class StudentServiceImpl implements StudentService {
     @Transactional(readOnly = true)
     @Override
     public StudentDTO getStudentDTOByUserId(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
-        Student student = studentRepository.findByUserId(userId)
+        Student student = studentRepository.findByUserIdWithUserAndProgram(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Student not found for user id: " + userId));
 
         StudentDTO studentDTO = new StudentDTO();
         studentDTO.setId(student.getId());
         studentDTO.setYear(student.getYear());
-        studentDTO.setUsername(user.getUsername());
-        studentDTO.setEmail(user.getEmail());
+        studentDTO.setSemester(student.getSemester());
+        studentDTO.setUsername(student.getUser().getUsername());
+        studentDTO.setEmail(student.getUser().getEmail());
         if (student.getProgram() != null) {
             studentDTO.setProgramId(student.getProgram().getId());
             studentDTO.setProgramName(student.getProgram().getName());

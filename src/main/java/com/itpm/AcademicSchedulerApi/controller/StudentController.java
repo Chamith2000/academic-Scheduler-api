@@ -83,6 +83,7 @@ public class StudentController {
         Student student = studentRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Student profile not found."));
         student.setYear(request.getYear());
+        student.setSemester(request.getSemester());
         user.setEmail(request.getEmail());
         studentRepository.save(student);
         // Assume userRepository.save(user) is needed if email is updated

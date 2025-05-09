@@ -10,6 +10,7 @@ const StudentSettings = () => {
     const navigate = useNavigate();
     const [student, setStudent] = useState(null);
     const [year, setYear] = useState(1);
+    const [semester, setSemester] = useState(1); // Added semester state
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,14 +35,20 @@ const StudentSettings = () => {
             });
             setStudent(response.data);
             setYear(response.data.year || 1);
+            setSemester(response.data.semester || 1); // Set semester from response
             setEmail(response.data.email || "");
             setSuccess("Student profile loaded successfully.");
         } catch (err) {
             console.error("Fetch profile error:", err);
-            if (err.response?.status === 404 || err.response?.data?.message?.includes("Student not found")) {
+            if (
+                err.response?.status === 404 ||
+                err.response?.data?.message?.includes("Student not found")
+            ) {
                 setError("No student profile found. Please create your profile below.");
             } else {
-                setError(err.response?.data?.message || "Failed to load profile. Please try again.");
+                setError(
+                    err.response?.data?.message || "Failed to load profile. Please try again."
+                );
             }
             setStudent(null);
         } finally {
@@ -68,7 +75,9 @@ const StudentSettings = () => {
             await fetchStudentProfile();
         } catch (err) {
             console.error("Create profile error:", err);
-            setError(err.response?.data?.message || "Failed to create profile. Please try again.");
+            setError(
+                err.response?.data?.message || "Failed to create profile. Please try again."
+            );
         } finally {
             setSubmitting(false);
         }
@@ -78,6 +87,11 @@ const StudentSettings = () => {
         e.preventDefault();
         if (year < 1 || year > 4) {
             setError("Year must be between 1 and 4.");
+            return;
+        }
+        if (semester < 1 || semester > 2) {
+            // Added semester validation
+            setError("Semester must be 1 or 2.");
             return;
         }
         if (!email) {
@@ -90,14 +104,16 @@ const StudentSettings = () => {
         try {
             await axios.put(
                 "http://localhost:8080/api/students/me",
-                { year, email },
+                { year, semester, email }, // Added semester to payload
                 { headers: { Authorization: `Bearer ${auth.accessToken}` } }
             );
             setSuccess("Profile updated successfully!");
             await fetchStudentProfile();
         } catch (err) {
             console.error("Update profile error:", err);
-            setError(err.response?.data?.message || "Failed to update profile. Please try again.");
+            setError(
+                err.response?.data?.message || "Failed to update profile. Please try again."
+            );
         } finally {
             setSubmitting(false);
         }
@@ -127,7 +143,9 @@ const StudentSettings = () => {
             setConfirmPassword("");
         } catch (err) {
             console.error("Change password error:", err);
-            setError(err.response?.data?.message || "Failed to change password. Please try again.");
+            setError(
+                err.response?.data?.message || "Failed to change password. Please try again."
+            );
         } finally {
             setSubmitting(false);
         }
@@ -186,7 +204,10 @@ const StudentSettings = () => {
                     {student ? (
                         <form onSubmit={handleUpdateProfile} className="space-y-4">
                             <div>
-                                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <label
+                                    htmlFor="username"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
                                     Username {/* Sinhala: පරිශීලක නම */}
                                 </label>
                                 <input
@@ -198,7 +219,10 @@ const StudentSettings = () => {
                                 />
                             </div>
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <label
+                                    htmlFor="email"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
                                     Email {/* Sinhala: විද්‍යුත් තැපෑල */}
                                 </label>
                                 <input
@@ -212,7 +236,10 @@ const StudentSettings = () => {
                                 />
                             </div>
                             <div>
-                                <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <label
+                                    htmlFor="year"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
                                     Year of Study {/* Sinhala: අධ්‍යයන වර්ෂය */}
                                 </label>
                                 <input
@@ -227,9 +254,31 @@ const StudentSettings = () => {
                                     disabled={submitting}
                                 />
                             </div>
+                            <div>
+                                <label
+                                    htmlFor="semester"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
+                                    Semester {/* Sinhala: අර්ධ වාර්ෂික */}
+                                </label>
+                                <input
+                                    type="number"
+                                    id="semester"
+                                    value={semester}
+                                    onChange={(e) => setSemester(Number(e.target.value))}
+                                    className="mt-1 w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    min="1"
+                                    max="2"
+                                    required
+                                    disabled={submitting}
+                                />
+                            </div>
                             {student.programName && (
                                 <div>
-                                    <label htmlFor="program" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <label
+                                        htmlFor="program"
+                                        className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                    >
                                         Program {/* Sinhala: වැඩසටහන */}
                                     </label>
                                     <input
@@ -243,7 +292,9 @@ const StudentSettings = () => {
                             )}
                             <motion.button
                                 type="submit"
-                                className={`w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                                className={`w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
+                                    submitting ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 disabled={submitting}
@@ -258,7 +309,10 @@ const StudentSettings = () => {
                     ) : (
                         <form onSubmit={handleCreateProfile} className="space-y-4">
                             <div>
-                                <label htmlFor="year" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <label
+                                    htmlFor="year"
+                                    className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                >
                                     Year of Study {/* Sinhala: අධ්‍යයන වර්ෂය */}
                                 </label>
                                 <input
@@ -275,7 +329,9 @@ const StudentSettings = () => {
                             </div>
                             <motion.button
                                 type="submit"
-                                className={`w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                                className={`w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
+                                    submitting ? "opacity-50 cursor-not-allowed" : ""
+                                }`}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 disabled={submitting}
@@ -295,7 +351,10 @@ const StudentSettings = () => {
                     </h2>
                     <form onSubmit={handleChangePassword} className="space-y-4">
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <label
+                                htmlFor="password"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
                                 New Password {/* Sinhala: නව මුරපදය */}
                             </label>
                             <input
@@ -309,7 +368,10 @@ const StudentSettings = () => {
                             />
                         </div>
                         <div>
-                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <label
+                                htmlFor="confirmPassword"
+                                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                            >
                                 Confirm Password {/* Sinhala: මුරපදය තහවුරු කරන්න */}
                             </label>
                             <input
@@ -324,7 +386,9 @@ const StudentSettings = () => {
                         </div>
                         <motion.button
                             type="submit"
-                            className={`w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                            className={`w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
+                                submitting ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             disabled={submitting}

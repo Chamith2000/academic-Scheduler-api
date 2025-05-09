@@ -17,6 +17,9 @@ public class Student {
     @Column(nullable = false)
     private int year;
 
+    @Column(nullable = false)
+    private int semester;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
